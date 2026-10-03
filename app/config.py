@@ -6,7 +6,7 @@ Reads settings from environment variables or .env file with production defaults.
 from functools import lru_cache
 import os
 from pathlib import Path
-from typing import Literal, Tuple
+from typing import List, Literal, Tuple, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,6 +82,14 @@ class Settings(BaseSettings):
         le=65535,
         description="Port for the application server",
     )
+    ALLOWED_HOSTS: Union[str, List[str]] = Field(
+        default=["*"],
+        description="Allowed host header names or IP addresses",
+    )
+    CORS_ORIGINS: Union[str, List[str]] = Field(
+        default=["*"],
+        description="Allowed CORS origins",
+    )
 
     @field_validator("LOG_DIR", "DATA_DIR", mode="after")
     @classmethod
@@ -122,6 +130,18 @@ class Settings(BaseSettings):
         """Convenience property indicating whether the NAS directory is currently available."""
         valid, _ = self.validate_nas_directory()
         return valid
+
+    def get_allowed_hosts(self) -> List[str]:
+        """Return allowed hosts as a list of strings."""
+        if isinstance(self.ALLOWED_HOSTS, list):
+            return self.ALLOWED_HOSTS
+        return [h.strip() for h in str(self.ALLOWED_HOSTS).split(",") if h.strip()]
+
+    def get_cors_origins(self) -> List[str]:
+        """Return allowed CORS origins as a list of strings."""
+        if isinstance(self.CORS_ORIGINS, list):
+            return self.CORS_ORIGINS
+        return [o.strip() for o in str(self.CORS_ORIGINS).split(",") if o.strip()]
 
 
 @lru_cache()

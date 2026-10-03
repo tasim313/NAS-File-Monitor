@@ -20,10 +20,63 @@ from app.services.duplicate_service import DuplicateService
 from app.services.file_service import FileService
 from app.services.scan_service import ScanInProgressError, ScanService
 
-router = APIRouter(prefix="/api", tags=["Monitoring API"])
+router = APIRouter(tags=["Monitoring API"])
+
+
+@router.get("", summary="API Directory", include_in_schema=False)
+@router.get("/", summary="API Directory", include_in_schema=False)
+def get_api_root() -> Dict[str, Any]:
+    """Return JSON directory of all available REST API endpoints."""
+    from app import __version__
+    return {
+        "status": "online",
+        "system": "NAS File Monitoring and Duplicate Tracking System",
+        "version": __version__,
+        "endpoints": {
+            "dashboard": "/api/dashboard",
+            "files": "/api/files",
+            "new_files": "/api/files/new",
+            "previous_files": "/api/files/previous",
+            "duplicates": "/api/files/duplicates",
+            "removed_files": "/api/files/removed",
+            "file_details": "/api/files/{id}",
+            "events": "/api/events",
+            "scans": "/api/scans",
+            "manual_scan": "/api/scan (POST)",
+            "health": "/api/health",
+            "export_files": "/api/export/files?format=csv|json",
+            "export_duplicates": "/api/export/duplicates?format=csv|json",
+            "websocket": "/ws",
+            "swagger_ui": "/docs",
+            "redoc": "/redoc",
+            "openapi": "/openapi.json",
+        },
+    }
+
+
+@router.get("/health", summary="Service Health Check")
+@router.get("/health/", summary="Service Health Check", include_in_schema=False)
+def api_health():
+    """Service health check returning status, version, and NAS availability flag."""
+    from app import __version__
+    settings = get_settings()
+    nas_exists = settings.NAS_DIRECTORY.exists() and settings.NAS_DIRECTORY.is_dir()
+    scheduler = get_scan_scheduler()
+    return {
+        "status": "healthy" if nas_exists else "degraded",
+        "version": __version__,
+        "nas_directory": str(settings.NAS_DIRECTORY),
+        "nas_available": nas_exists,
+        "database": True,
+        "scanner_running": ScanService.is_scan_running(),
+        "scheduler_running": scheduler.is_running,
+    }
 
 
 @router.get("/dashboard", summary="Dashboard Statistics")
+@router.get("/dashboard/", summary="Dashboard Statistics", include_in_schema=False)
+@router.get("/scans/dashboard", summary="Dashboard Statistics (Alias)", include_in_schema=False)
+@router.get("/scans/dashboard/", summary="Dashboard Statistics (Alias)", include_in_schema=False)
 def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Retrieve aggregate statistics, latest scan status, and recent activity for the dashboard."""
     settings = get_settings()

@@ -1,13 +1,16 @@
 """FastAPI application factory and lifecycle management.
 
-Configures database initialization, logging, routers, static files, and background scheduler.
+Configures database initialization, logging, routers, static files, background scheduler,
+CORS for localhost and LAN IP (192.168.1.30), and bi-directional WebSocket API endpoints.
 """
 
 from contextlib import asynccontextmanager
+import json
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
@@ -30,6 +33,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting NAS File Monitoring System v%s...", __version__)
     logger.info("NAS Target Directory: %s", settings.NAS_DIRECTORY)
     logger.info("Database URL: %s", settings.DATABASE_URL)
+    logger.info(
+        "Server accessible via: http://localhost:%d and http://192.168.1.30:%d",
+        settings.APP_PORT,
+        settings.APP_PORT,
+    )
 
     # Initialize SQLite database and models
     init_db()
@@ -42,6 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Track main event loop in WebSocket manager
     import asyncio
     from app.websocket_manager import ws_manager
+
     try:
         ws_manager.set_event_loop(asyncio.get_running_loop())
     except Exception:
@@ -55,7 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application instance."""
-    from fastapi import WebSocket, WebSocketDisconnect
+    settings = get_settings()
 
     app = FastAPI(
         title="NAS File Monitoring and Duplicate File Tracking System",
@@ -64,20 +73,33 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Enable CORS for localhost and 192.168.1.30 (and all LAN clients)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.get_cors_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     # Mount static assets
     static_dir = Path(__file__).resolve().parent / "web" / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    # Register API and Web UI routers
-    app.include_router(api_router)
+    # Register API routers with BOTH /api and /api/v1 prefixes
+    app.include_router(api_router, prefix="/api")
+    app.include_router(api_router, prefix="/api/v1")
     app.include_router(web_router)
 
-    @app.websocket("/ws")
-    async def websocket_endpoint(websocket: WebSocket):
-        """WebSocket endpoint for real-time live updates without browser refresh."""
+    async def handle_websocket_connection(websocket: WebSocket):
+        """Handle WebSocket connection lifecycle and bi-directional API queries."""
         from app.database.database import SessionLocal
-        from app.websocket_manager import ws_manager, build_dashboard_payload
+        from app.websocket_manager import (
+            build_dashboard_payload,
+            handle_ws_api_command,
+            ws_manager,
+        )
 
         await ws_manager.connect(websocket)
 
@@ -97,10 +119,13 @@ def create_app() -> FastAPI:
 
         try:
             while True:
-                data = await websocket.receive_text()
-                if data == "ping":
+                raw_data = await websocket.receive_text()
+                raw_data_stripped = raw_data.strip()
+
+                if raw_data_stripped == "ping":
                     await websocket.send_text("pong")
-                elif data == "refresh":
+                    continue
+                elif raw_data_stripped == "refresh":
                     db = SessionLocal()
                     try:
                         payload = build_dashboard_payload(db)
@@ -110,16 +135,46 @@ def create_app() -> FastAPI:
                         })
                     finally:
                         db.close()
+                    continue
+
+                # Parse JSON command if sent
+                try:
+                    command = json.loads(raw_data)
+                except Exception:
+                    command = {"action": raw_data_stripped}
+
+                db = SessionLocal()
+                try:
+                    response_payload = handle_ws_api_command(db, command)
+                    await websocket.send_json(response_payload)
+                finally:
+                    db.close()
+
         except WebSocketDisconnect:
             ws_manager.disconnect(websocket)
         except Exception as e:
             logger.info("WebSocket connection closed: %s", e)
             ws_manager.disconnect(websocket)
 
+    # WebSocket endpoints
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        await handle_websocket_connection(websocket)
+
+    @app.websocket("/api/ws")
+    async def api_websocket_endpoint(websocket: WebSocket):
+        await handle_websocket_connection(websocket)
+
+    @app.websocket("/api/v1/ws")
+    async def api_v1_websocket_endpoint(websocket: WebSocket):
+        await handle_websocket_connection(websocket)
+
+    # Top-level health endpoints
+    @app.get("/health", tags=["System"])
     @app.get("/api/health", tags=["System"])
+    @app.get("/api/v1/health", tags=["System"])
     def health_check():
         """Health check endpoint to verify system status."""
-        settings = get_settings()
         nas_exists = settings.NAS_DIRECTORY.exists() and settings.NAS_DIRECTORY.is_dir()
         scheduler = get_scan_scheduler()
         return {
@@ -130,10 +185,10 @@ def create_app() -> FastAPI:
             "database": True,
             "scanner_running": ScanService.is_scan_running(),
             "scheduler_running": scheduler.is_running,
+            "allowed_hosts": settings.get_allowed_hosts(),
         }
 
     return app
 
 
 app = create_app()
-
