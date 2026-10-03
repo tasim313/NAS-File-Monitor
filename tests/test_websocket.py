@@ -105,3 +105,30 @@ def test_websocket_aliases_and_web_view():
         assert resp.status_code == 200
         assert "WebSocket Live API Explorer" in resp.text
         assert "Mostasim Mahmud Tasim" in resp.text
+
+
+def test_websocket_http_get_fallbacks():
+    """Verify HTTP GET /ws returns JSON for API clients and redirects for browsers."""
+    app = create_app()
+    with TestClient(app) as client:
+        # 1. API client GET /ws (JSON response)
+        resp_json = client.get("/ws", headers={"Accept": "application/json"})
+        assert resp_json.status_code == 200
+        data = resp_json.json()
+        assert data["status"] == "online"
+        assert "websocket_url" in data
+        assert "how_to_connect" in data
+
+        # 2. API client GET /api/ws and /api/v1/ws
+        resp_api = client.get("/api/ws")
+        assert resp_api.status_code == 200
+        assert resp_api.json()["status"] == "online"
+
+        resp_v1 = client.get("/api/v1/ws")
+        assert resp_v1.status_code == 200
+        assert resp_v1.json()["status"] == "online"
+
+        # 3. Browser GET /ws (redirects to /websocket-api)
+        resp_browser = client.get("/ws", headers={"Accept": "text/html"}, follow_redirects=False)
+        assert resp_browser.status_code == 303
+        assert resp_browser.headers["location"] == "/websocket-api"
