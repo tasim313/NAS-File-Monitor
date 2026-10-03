@@ -1,0 +1,29 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases & logs
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Environment secrets
+.env
+
+# Editor & OS artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp

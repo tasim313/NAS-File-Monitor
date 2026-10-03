@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}WebSocket Live API Explorer - NAS File Monitor{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1 d-flex align-items-center">
+      <i class="bi bi-broadcast text-success me-2"></i> WebSocket Live API Explorer
+    </h1>
+    <p class="text-muted small mb-0">
+      Query all GET API endpoints in real-time over WebSockets and monitor live background scan broadcasts without reloading.
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+    <div id="wsExplorerBadge" class="badge bg-secondary d-flex align-items-center gap-2 px-3 py-2 fs-6">
+      <span class="spinner-border spinner-border-sm" role="status"></span>
+      <span id="wsExplorerBadgeText">Connecting to WS...</span>
+    </div>
+    <a href="/api-docs" class="btn btn-outline-primary btn-sm fw-semibold">
+      <i class="bi bi-book me-1"></i> REST API Docs
+    </a>
+  </div>
+</div>
+
+<!-- Connection & Status Bar -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="row align-items-center g-3">
+      <div class="col-md-5">
+        <label class="form-label small text-muted mb-1 fw-semibold">WEBSOCKET ENDPOINT</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light font-monospace fw-bold text-success">ws://</span>
+          <input type="text" id="wsUrlInput" class="form-control font-monospace" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyWsUrlBtn" title="Copy URL">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-muted mb-1 fw-semibold">ROUND-TRIP LATENCY</label>
+        <div class="d-flex align-items-center gap-2">
+          <span id="wsLatencyVal" class="badge bg-dark font-monospace fs-6">-- ms</span>
+          <button id="pingNowBtn" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;">
+            <i class="bi bi-heart-pulse text-danger me-1"></i> Ping
+          </button>
+        </div>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <label class="form-label small text-muted mb-1 fw-semibold d-block">AUTO-STREAM BACKGROUND SCANS</label>
+        <div class="form-check form-switch d-inline-block">
+          <input class="form-check-input" type="checkbox" id="autoStreamSwitch" checked>
+          <label class="form-check-label small fw-semibold" for="autoStreamSwitch">Receive 5s live scan pushes</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Panel: API Endpoint Action Selector -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 fw-bold fs-6">
+          <i class="bi bi-cpu text-primary me-2"></i> WebSocket API Endpoints
+        </h5>
+        <span class="badge bg-light text-dark border">13 Operations</span>
+      </div>
+      <div class="card-body">
+        <label class="form-label small text-muted fw-semibold mb-2">CLICK AN API TO DISPATCH VIA WEBSOCKET:</label>
+
+        <!-- Quick API Buttons -->
+        <div class="d-grid gap-2 mb-3">
+          <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center api-btn active" data-action="get_dashboard">
+            <span><i class="bi bi-speedometer2 me-2"></i> <strong>get_dashboard</strong></span>
+            <span class="badge bg-primary-subtle text-primary border">GET /api/dashboard</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="get_files">
+            <span><i class="bi bi-folder2-open me-2"></i> <strong>get_files</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/files</span>
+          </button>
+          <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center api-btn" data-action="get_new_files">
+            <span><i class="bi bi-file-earmark-plus me-2 text-success"></i> <strong>get_new_files</strong> (List 1)</span>
+            <span class="badge bg-success-subtle text-success border">GET /api/files/new</span>
+          </button>
+          <button class="btn btn-outline-info text-start d-flex justify-content-between align-items-center api-btn" data-action="get_previous_files">
+            <span><i class="bi bi-file-earmark-check me-2 text-info"></i> <strong>get_previous_files</strong> (List 2)</span>
+            <span class="badge bg-info-subtle text-info border">GET /api/files/previous</span>
+          </button>
+          <button class="btn btn-outline-warning text-start d-flex justify-content-between align-items-center api-btn" data-action="get_duplicates">
+            <span><i class="bi bi-files me-2 text-warning"></i> <strong>get_duplicates</strong> (List 3)</span>
+            <span class="badge bg-warning-subtle text-warning border">GET /api/files/duplicates</span>
+          </button>
+          <button class="btn btn-outline-danger text-start d-flex justify-content-between align-items-center api-btn" data-action="get_removed_files">
+            <span><i class="bi bi-file-earmark-x me-2 text-danger"></i> <strong>get_removed_files</strong></span>
+            <span class="badge bg-danger-subtle text-danger border">GET /api/files/removed</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="get_file_details">
+            <span><i class="bi bi-file-earmark-text me-2"></i> <strong>get_file_details</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/files/{id}</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="get_events">
+            <span><i class="bi bi-clock-history me-2"></i> <strong>get_events</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/events</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="get_scans">
+            <span><i class="bi bi-arrow-repeat me-2"></i> <strong>get_scans</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/scans</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="get_health">
+            <span><i class="bi bi-activity me-2"></i> <strong>get_health</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/health</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="export_files">
+            <span><i class="bi bi-filetype-json me-2"></i> <strong>export_files</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/export/files</span>
+          </button>
+          <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center api-btn" data-action="export_duplicates">
+            <span><i class="bi bi-filetype-json me-2"></i> <strong>export_duplicates</strong></span>
+            <span class="badge bg-light text-dark border">GET /api/export/duplicates</span>
+          </button>
+          <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center api-btn" data-action="trigger_scan">
+            <span><i class="bi bi-play-circle-fill me-2 text-success"></i> <strong>trigger_scan</strong></span>
+            <span class="badge bg-success text-white">POST /api/scan</span>
+          </button>
+        </div>
+
+        <hr>
+
+        <!-- Parameters Box -->
+        <h6 class="fw-bold small text-muted mb-2">PARAMETERS (OPTIONAL)</h6>
+        <div class="row g-2 mb-3">
+          <div class="col-7">
+            <input type="text" id="paramQuery" class="form-control form-control-sm" placeholder="Search filter (e.g. 2609)">
+          </div>
+          <div class="col-5">
+            <select id="paramLimit" class="form-select form-select-sm">
+              <option value="10">Limit 10</option>
+              <option value="25">Limit 25</option>
+              <option value="50" selected>Limit 50</option>
+              <option value="100">Limit 100</option>
+            </select>
+          </div>
+          <div class="col-6" id="fileIdContainer" style="display: none;">
+            <input type="number" id="paramFileId" class="form-control form-control-sm" placeholder="File ID (default 1)" value="1">
+          </div>
+        </div>
+
+        <!-- Outbound WebSocket Payload Preview -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-muted fw-semibold">OUTBOUND WS FRAME</span>
+            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">JSON</span>
+          </div>
+          <pre id="outboundFramePreview" class="bg-dark text-success p-2 rounded small font-monospace mb-0" style="max-height: 90px; overflow-y: auto;">{"action": "get_dashboard"}</pre>
+        </div>
+
+        <button id="sendWsApiBtn" class="btn btn-primary w-100 fw-bold shadow-sm d-flex justify-content-center align-items-center gap-2">
+          <i class="bi bi-send-fill"></i> Execute over WebSocket
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Live Inspector & Response Stream -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-white py-2 border-bottom">
+        <ul class="nav nav-tabs card-header-tabs" id="wsInspectTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active fw-semibold" id="response-tab" data-bs-toggle="tab" data-bs-target="#tab-response" type="button" role="tab">
+              <i class="bi bi-terminal me-1"></i> API Response
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-semibold" id="stream-tab" data-bs-toggle="tab" data-bs-target="#tab-stream" type="button" role="tab">
+              <i class="bi bi-broadcast me-1 text-danger"></i> Live Scan Stream
+              <span id="streamCountBadge" class="badge bg-danger rounded-pill ms-1">0</span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-semibold" id="code-tab" data-bs-toggle="tab" data-bs-target="#tab-code" type="button" role="tab">
+              <i class="bi bi-code-slash me-1"></i> Client Code
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card-body p-3">
+        <div class="tab-content" id="wsInspectTabContent">
+          <!-- TAB 1: API Response -->
+          <div class="tab-pane fade show active" id="tab-response" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span id="resStatusBadge" class="badge bg-success">READY</span>
+                <span id="resActionLabel" class="font-monospace small text-muted">get_dashboard</span>
+                <span id="resTimeBadge" class="badge bg-light text-dark border font-monospace">-- ms</span>
+              </div>
+              <div>
+                <button class="btn btn-sm btn-outline-secondary" id="copyResponseBtn" title="Copy JSON">
+                  <i class="bi bi-clipboard me-1"></i> Copy
+                </button>
+              </div>
+            </div>
+            <pre id="jsonResponseViewer" class="bg-dark text-light p-3 rounded font-monospace" style="min-height: 480px; max-height: 580px; overflow: auto; font-size: 0.82rem; line-height: 1.45;">{
+  "status": "Click 'Execute over WebSocket' to query live data..."
+}</pre>
+          </div>
+
+          <!-- TAB 2: Live Stream Pushes -->
+          <div class="tab-pane fade" id="tab-stream" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small text-muted">Live server broadcasts pushed automatically every 5s on scan completion:</span>
+              <button class="btn btn-sm btn-outline-danger" id="clearStreamBtn">
+                <i class="bi bi-trash me-1"></i> Clear Log
+              </button>
+            </div>
+            <div id="liveStreamFeed" style="min-height: 480px; max-height: 580px; overflow-y: auto;" class="bg-light p-2 rounded border">
+              <div class="text-center text-muted p-4">
+                <div class="spinner-grow spinner-grow-sm text-success mb-2" role="status"></div>
+                <p class="small mb-0">Listening for background scan broadcasts...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: Client Code Integration -->
+          <div class="tab-pane fade" id="tab-code" role="tabpanel">
+            <h6 class="fw-bold mb-2">How to Connect from JavaScript (Web / Node):</h6>
+            <pre class="bg-dark text-info p-3 rounded font-monospace small mb-3">const socket = new WebSocket("ws://localhost:8000/ws");
+
+socket.onopen = () => {
+  // Query any GET API:
+  socket.send(JSON.stringify({
+    action: "get_files",
+    params: { limit: 50, query: "2609" }
+  }));
+};
+
+socket.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  console.log("Live API Data:", msg);
+};</pre>
+
+            <h6 class="fw-bold mb-2">How to Connect from Python (asyncio + websockets):</h6>
+            <pre class="bg-dark text-warning p-3 rounded font-monospace small">import asyncio
+import json
+import websockets
+
+async def listen():
+    async with websockets.connect("ws://localhost:8000/ws") as ws:
+        # Request Duplicate Groups
+        await ws.send(json.dumps({"action": "get_duplicates"}))
+        
+        while True:
+            message = await ws.recv()
+            data = json.loads(message)
+            print("Received Live Data:", data.get("type"))
+
+asyncio.run(listen())</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  let ws = null;
+  let currentAction = "get_dashboard";
+  let streamCount = 0;
+  let pingStartTime = 0;
+
+  const wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
+  document.getElementById("wsUrlInput").value = wsUrl;
+
+  const badge = document.getElementById("wsExplorerBadge");
+  const badgeText = document.getElementById("wsExplorerBadgeText");
+  const latencyVal = document.getElementById("wsLatencyVal");
+  const outboundPreview = document.getElementById("outboundFramePreview");
+  const jsonViewer = document.getElementById("jsonResponseViewer");
+  const resStatusBadge = document.getElementById("resStatusBadge");
+  const resActionLabel = document.getElementById("resActionLabel");
+  const resTimeBadge = document.getElementById("resTimeBadge");
+  const fileIdContainer = document.getElementById("fileIdContainer");
+  const streamFeed = document.getElementById("liveStreamFeed");
+  const streamCountBadge = document.getElementById("streamCountBadge");
+
+  function setBadge(state, text) {
+    badge.className = "badge d-flex align-items-center gap-2 px-3 py-2 fs-6 " + 
+      (state === "connected" ? "bg-success" : state === "connecting" ? "bg-warning text-dark" : "bg-danger");
+    badgeText.textContent = text;
+  }
+
+  function initSocket() {
+    setBadge("connecting", "Connecting to WS...");
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = function() {
+      setBadge("connected", "WebSocket Live Connected");
+      measurePing();
+      // Send initial action
+      sendAction();
+    };
+
+    ws.onmessage = function(event) {
+      if (event.data === "pong") {
+        const latency = Date.now() - pingStartTime;
+        latencyVal.textContent = latency + " ms";
+        latencyVal.className = "badge " + (latency < 50 ? "bg-success" : "bg-warning") + " font-monospace fs-6";
+        return;
+      }
+
+      try {
+        const msg = JSON.parse(event.data);
+        handleInboundMessage(msg);
+      } catch (e) {
+        console.debug("WS raw message:", event.data);
+      }
+    };
+
+    ws.onerror = function() {
+      setBadge("error", "WebSocket Error");
+    };
+
+    ws.onclose = function() {
+      setBadge("disconnected", "Disconnected. Reconnecting...");
+      setTimeout(initSocket, 2500);
+    };
+  }
+
+  function measurePing() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      pingStartTime = Date.now();
+      ws.send("ping");
+    }
+  }
+
+  function buildPayload() {
+    const q = document.getElementById("paramQuery").value.trim();
+    const limit = parseInt(document.getElementById("paramLimit").value, 10);
+    const fileId = parseInt(document.getElementById("paramFileId").value, 10) || 1;
+
+    const payload = { action: currentAction };
+    const params = {};
+
+    if (q) params.query = q;
+    if (limit) params.limit = limit;
+    if (currentAction === "get_file_details") params.file_id = fileId;
+
+    if (Object.keys(params).length > 0) {
+      payload.params = params;
+    }
+    return payload;
+  }
+
+  function updateOutboundPreview() {
+    const payload = buildPayload();
+    outboundPreview.textContent = JSON.stringify(payload, null, 2);
+  }
+
+  let requestStartTime = 0;
+  function sendAction() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      jsonViewer.textContent = JSON.stringify({ error: "WebSocket is not connected. Reconnecting..." }, null, 2);
+      return;
+    }
+
+    const payload = buildPayload();
+    requestStartTime = Date.now();
+    resStatusBadge.textContent = "SENDING...";
+    resStatusBadge.className = "badge bg-warning text-dark";
+    resActionLabel.textContent = currentAction;
+    resTimeBadge.textContent = "-- ms";
+
+    ws.send(JSON.stringify(payload));
+  }
+
+  function handleInboundMessage(msg) {
+    const isScanBroadcast = msg.type === "SCAN_COMPLETED";
+
+    if (isScanBroadcast) {
+      // Append to live stream feed if auto-stream is enabled
+      if (document.getElementById("autoStreamSwitch").checked) {
+        appendStreamEvent(msg);
+      }
+      return;
+    }
+
+    // Response to a requested action
+    const elapsed = Date.now() - requestStartTime;
+    resTimeBadge.textContent = elapsed + " ms";
+    resStatusBadge.textContent = msg.status === "error" ? "ERROR" : "SUCCESS (200 OK)";
+    resStatusBadge.className = "badge " + (msg.status === "error" ? "bg-danger" : "bg-success");
+    resActionLabel.textContent = msg.action || msg.type || "RESPONSE";
+
+    jsonViewer.textContent = JSON.stringify(msg, null, 2);
+  }
+
+  function appendStreamEvent(msg) {
+    streamCount++;
+    streamCountBadge.textContent = streamCount;
+
+    const firstPlaceholder = streamFeed.querySelector(".text-center");
+    if (firstPlaceholder) firstPlaceholder.remove();
+
+    const timestamp = msg.data && msg.data.server_time ? msg.data.server_time : new Date().toLocaleTimeString();
+    const card = document.createElement("div");
+    card.className = "card border-0 shadow-sm mb-2 border-start border-4 border-success";
+    card.innerHTML = `
+      <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="badge bg-success-subtle text-success border fw-bold">
+            <i class="bi bi-broadcast me-1"></i> SCAN #${msg.scan_id || ""} BROADCAST
+          </span>
+          <span class="text-muted font-monospace small">${timestamp}</span>
+        </div>
+        <div class="small text-dark font-monospace">
+          Total: <strong>${msg.total_count ?? msg.data?.stats?.total_files ?? "-"}</strong> files |
+          New: <span class="text-success">+${msg.new_count ?? msg.data?.stats?.new_files ?? 0}</span> |
+          Duplicates: <span class="text-warning">${msg.duplicate_count ?? msg.data?.stats?.duplicate_files ?? 0}</span>
+        </div>
+      </div>
+    `;
+    streamFeed.prepend(card);
+  }
+
+  // Button Listeners
+  document.querySelectorAll(".api-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".api-btn").forEach(b => b.classList.remove("active"));
+      this.classList.add("active");
+      currentAction = this.getAttribute("data-action");
+
+      fileIdContainer.style.display = (currentAction === "get_file_details") ? "block" : "none";
+      updateOutboundPreview();
+      sendAction();
+    });
+  });
+
+  document.getElementById("sendWsApiBtn").addEventListener("click", sendAction);
+  document.getElementById("paramQuery").addEventListener("input", updateOutboundPreview);
+  document.getElementById("paramLimit").addEventListener("change", updateOutboundPreview);
+  document.getElementById("paramFileId").addEventListener("input", updateOutboundPreview);
+
+  document.getElementById("pingNowBtn").addEventListener("click", measurePing);
+  setInterval(measurePing, 10000);
+
+  document.getElementById("copyWsUrlBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(wsUrl);
+    alert("WebSocket URL copied to clipboard: " + wsUrl);
+  });
+
+  document.getElementById("copyResponseBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(jsonViewer.textContent);
+    alert("JSON Response copied to clipboard!");
+  });
+
+  document.getElementById("clearStreamBtn").addEventListener("click", () => {
+    streamFeed.innerHTML = '<div class="text-center text-muted p-4"><p class="small mb-0">Stream cleared. Waiting for next scan push...</p></div>';
+    streamCount = 0;
+    streamCountBadge.textContent = "0";
+  });
+
+  initSocket();
+})();
+</script>
+{% endblock %}

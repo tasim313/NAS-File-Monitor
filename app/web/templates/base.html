@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NAS File Monitoring & Duplicate Tracking System{% endblock %}</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Custom Styles -->
+  <link href="/static/css/styles.css" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="d-flex flex-column min-vh-100">
+  <!-- Top Navigation Bar -->
+  <nav class="navbar navbar-expand-xl navbar-dark bg-dark sticky-top shadow-sm py-2">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <i class="bi bi-hdd-network text-primary me-2 fs-4"></i>
+        <span class="fw-bold">NAS File Monitor</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarMain">
+        <ul class="navbar-nav me-auto mb-2 mb-xl-0">
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'dashboard' %}active text-white fw-semibold{% endif %}" href="/">
+              <i class="bi bi-speedometer2 me-1"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'new' %}active text-white fw-semibold{% endif %}" href="/files/new">
+              <i class="bi bi-file-earmark-plus me-1 text-success"></i> Newly Added
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'previous' %}active text-white fw-semibold{% endif %}" href="/files/previous">
+              <i class="bi bi-file-earmark-check me-1 text-info"></i> Previously Added
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'duplicates' %}active text-white fw-semibold{% endif %}" href="/files/duplicates">
+              <i class="bi bi-files me-1 text-warning"></i> Duplicates
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'removed' %}active text-white fw-semibold{% endif %}" href="/files/removed">
+              <i class="bi bi-file-earmark-x me-1 text-danger"></i> Removed
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'events' %}active text-white fw-semibold{% endif %}" href="/events">
+              <i class="bi bi-clock-history me-1"></i> Activity Ledger
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if active_page == 'scans' %}active text-white fw-semibold{% endif %}" href="/scans">
+              <i class="bi bi-arrow-repeat me-1"></i> Scan History
+            </a>
+          </li>
+          <!-- WebSocket API Explorer Link -->
+          <li class="nav-item">
+            <a class="nav-link text-success fw-semibold {% if active_page == 'websocket_api' %}active text-white{% endif %}" href="/websocket-api">
+              <i class="bi bi-broadcast me-1 text-success"></i> WebSocket API
+            </a>
+          </li>
+          <!-- ApiDocuments Dropdown Menu -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-info fw-semibold {% if active_page == 'api_docs' %}active text-white{% endif %}" href="#" id="apiDocsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-file-earmark-code me-1"></i> ApiDocuments
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark shadow" aria-labelledby="apiDocsDropdown">
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="/api-docs">
+                  <i class="bi bi-journal-text me-2 text-info"></i> API Overview & Directory
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="/websocket-api">
+                  <i class="bi bi-broadcast me-2 text-success"></i> WebSocket Live API Explorer
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="/docs" target="_blank">
+                  <i class="bi bi-lightning-charge text-warning me-2"></i> Swagger Interactive UI (/docs)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="/redoc" target="_blank">
+                  <i class="bi bi-book-half text-info me-2"></i> ReDoc Documentation (/redoc)
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="/openapi.json" target="_blank">
+                  <i class="bi bi-filetype-json text-secondary me-2"></i> OpenAPI Spec (/openapi.json)
+                </a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
+        <!-- Right Side: Live WebSocket Badge, Search Form, SCAN NOW trigger -->
+        <div class="d-flex align-items-center gap-2">
+          <!-- Real-Time WebSocket Connection Status Badge -->
+          <div id="wsStatusBadge" class="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 px-2 py-1" title="Real-time WebSocket connection to NAS server">
+            <span class="spinner-grow spinner-grow-sm text-success" style="width: 7px; height: 7px;" role="status"></span>
+            <span id="wsStatusText" style="font-size: 0.78rem;">WebSocket Live</span>
+          </div>
+
+          <form class="d-flex" action="/search" method="GET">
+            <div class="input-group input-group-sm">
+              <input class="form-control" type="search" name="q" placeholder="Search files/hash..." aria-label="Search" value="{{ search_query or '' }}">
+              <button class="btn btn-outline-light" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+          </form>
+
+          <button id="trigger-scan-btn" class="btn btn-sm btn-success fw-bold text-nowrap d-flex align-items-center">
+            <i class="bi bi-play-circle-fill me-1"></i> SCAN NOW
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container" style="z-index: 1080;"></div>
+
+  <!-- Main Content Area -->
+  <main class="py-4 flex-grow-1">
+    <div class="container-fluid px-4">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Footer with Developer Attribution and Dhaka Timezone -->
+  <footer class="bg-white border-top py-3 mt-auto">
+    <div class="container-fluid px-4 d-flex flex-wrap justify-content-between align-items-center text-muted small gap-2">
+      <div>
+        <strong>NAS File Monitoring & Duplicate Tracking System</strong> &bull;
+        Monitored: <code class="text-dark">{{ monitored_dir or '/media/requisition/Report' }}</code>
+      </div>
+      <div>
+        <span>Developer: <strong class="text-dark">Mostasim Mahmud Tasim</strong></span> &bull;
+        <span>Timezone: <span class="badge bg-light text-dark border">Asia/Dhaka (12h format)</span></span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap Bundle JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Custom Application Script -->
+  <script src="/static/js/app.js"></script>
+  <!-- WebSocket Real-Time Client Script -->
+  <script src="/static/js/websocket_client.js?v=3.0"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

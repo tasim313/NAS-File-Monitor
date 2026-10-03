@@ -1,0 +1,27 @@
+[Unit]
+Description=NAS File Monitoring and Duplicate File Tracking System
+After=network.target local-fs.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tasim
+Group=tasim
+WorkingDirectory=/home/tasim/Python/NAS File Monitoring and Duplicate File Tracking System
+ExecStart=/home/tasim/Python/NAS File Monitoring and Duplicate File Tracking System/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=5s
+
+# Security and Sandbox Hardening
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/tasim/Python/NAS File Monitoring and Duplicate File Tracking System/data /home/tasim/Python/NAS File Monitoring and Duplicate File Tracking System/logs
+ReadOnlyPaths=/media/requisition/Report
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+Environment=NAS_DIRECTORY=/media/requisition/Report
+Environment=LOG_LEVEL=INFO
+
+[Install]
+WantedBy=multi-user.target

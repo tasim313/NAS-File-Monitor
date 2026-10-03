@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}API Documents - NAS File Monitoring System{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1 d-flex align-items-center">
+      <i class="bi bi-code-square text-info me-2"></i> REST API Documentation & Reference
+    </h1>
+    <p class="text-muted small mb-0">
+      Quick reference, live endpoints, and interactive documentation for developers and automated workflows.
+    </p>
+  </div>
+  <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <a href="/docs" target="_blank" class="btn btn-warning fw-semibold shadow-sm">
+      <i class="bi bi-lightning-charge-fill me-1"></i> Swagger UI (/docs)
+    </a>
+    <a href="/redoc" target="_blank" class="btn btn-info text-white fw-semibold shadow-sm">
+      <i class="bi bi-book-half me-1"></i> ReDoc (/redoc)
+    </a>
+    <a href="/openapi.json" target="_blank" class="btn btn-outline-secondary shadow-sm">
+      <i class="bi bi-filetype-json me-1"></i> OpenAPI Spec
+    </a>
+  </div>
+</div>
+
+<!-- Quick Link Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-warning">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h6 class="fw-bold mb-1">Interactive Swagger UI</h6>
+          <p class="text-muted small mb-2">Test all API endpoints directly in your browser with interactive request builders.</p>
+          <a href="/docs" target="_blank" class="btn btn-sm btn-outline-warning fw-semibold">Open Swagger UI &rarr;</a>
+        </div>
+        <i class="bi bi-lightning-charge fs-2 text-warning"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-info">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h6 class="fw-bold mb-1">Clean ReDoc Portal</h6>
+          <p class="text-muted small mb-2">Comprehensive schema definitions, parameter documentation, and response models.</p>
+          <a href="/redoc" target="_blank" class="btn btn-sm btn-outline-info fw-semibold">Open ReDoc &rarr;</a>
+        </div>
+        <i class="bi bi-journal-text fs-2 text-info"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-success">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h6 class="fw-bold mb-1">Data Export APIs</h6>
+          <p class="text-muted small mb-2">Download active files and duplicate group registries formatted in CSV or JSON.</p>
+          <div class="d-flex gap-2">
+            <a href="/api/export/files?format=csv" class="btn btn-sm btn-outline-success">Export Files (CSV)</a>
+            <a href="/api/export/duplicates?format=csv" class="btn btn-sm btn-outline-success">Export Dups (CSV)</a>
+          </div>
+        </div>
+        <i class="bi bi-download fs-2 text-success"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Complete REST API Endpoints Directory -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0 fw-bold fs-6">
+      <i class="bi bi-hdd-network text-primary me-2"></i> Core REST API Endpoints Directory
+    </h5>
+    <span class="badge bg-primary">JSON Responses</span>
+  </div>
+  <div class="card-body p-0 table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 90px;">Method</th>
+          <th style="width: 280px;">URL Endpoint</th>
+          <th>Description & Features</th>
+          <th style="width: 140px;" class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/health</code></td>
+          <td>Service health check returning status, version, and NAS availability flag.</td>
+          <td class="text-end">
+            <a href="/api/health" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/dashboard</code></td>
+          <td>Summary statistics (total, new, existing, duplicates, removed), scheduler status, and latest events.</td>
+          <td class="text-end">
+            <a href="/api/dashboard" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files</code></td>
+          <td>List monitored files with query filters: <code>q</code> (search), <code>status</code> (NEW/EXISTING/REMOVED), <code>limit</code>, <code>offset</code>.</td>
+          <td class="text-end">
+            <a href="/api/files" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files/new</code></td>
+          <td>Returns only files discovered in the current or most recent scan lifecycle.</td>
+          <td class="text-end">
+            <a href="/api/files/new" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files/previous</code></td>
+          <td>Returns previously monitored files that continue to exist on the storage volume.</td>
+          <td class="text-end">
+            <a href="/api/files/previous" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files/duplicates</code></td>
+          <td>Detailed duplicate clusters grouping copies by SHA-256 and requisition report code with first vs latest occurrence.</td>
+          <td class="text-end">
+            <a href="/api/files/duplicates" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files/removed</code></td>
+          <td>Historical registry of removed / deleted files with original metadata preserved.</td>
+          <td class="text-end">
+            <a href="/api/files/removed" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/files/{id}</code></td>
+          <td>Single file metadata details and complete event history timeline.</td>
+          <td class="text-end">
+            <a href="/api/files/1" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right me-1"></i> Example #1</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/events</code></td>
+          <td>Activity ledger events stream (<code>ADDED</code>, <code>SEEN</code>, <code>MODIFIED</code>, <code>REMOVED</code>, <code>RESTORED</code>, <code>DUPLICATE_DETECTED</code>).</td>
+          <td class="text-end">
+            <a href="/api/events" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/scans</code></td>
+          <td>Historical scan runs log with start/completion times, durations, and counts.</td>
+          <td class="text-end">
+            <a href="/api/scans" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i> Open</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-primary">POST</span></td>
+          <td><code class="fw-bold text-dark">/api/scan</code></td>
+          <td>Trigger an immediate on-demand filesystem scan. Prevents overlapping runs with mutual exclusion lock.</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-success" onclick="triggerScanNow(this)"><i class="bi bi-play-fill"></i> Trigger Scan</button>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/export/files</code></td>
+          <td>Export file registry as CSV download (<code>?format=csv</code>) or JSON (<code>?format=json</code>).</td>
+          <td class="text-end">
+            <a href="/api/export/files?format=csv" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV</a>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">GET</span></td>
+          <td><code class="fw-bold text-dark">/api/export/duplicates</code></td>
+          <td>Export duplicate groups registry as CSV download (<code>?format=csv</code>) or JSON (<code>?format=json</code>).</td>
+          <td class="text-end">
+            <a href="/api/export/duplicates?format=csv" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

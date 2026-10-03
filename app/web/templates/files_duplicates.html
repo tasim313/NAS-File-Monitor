@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Duplicate Files (List 3) - NAS File Monitor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h3 mb-1 fw-bold text-dark">
+      <i class="bi bi-files text-warning me-2"></i>Content Duplicate Files (List 3)
+    </h2>
+    <p class="text-muted mb-0 small">
+      Groups of identical files sharing the exact same chunked SHA-256 checksum, tracking first vs latest occurrence.
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="/api/export/duplicates?format=csv" class="btn btn-sm btn-outline-dark" download title="Export Duplicate Groups to CSV">
+      <i class="bi bi-download me-1"></i> Export CSV
+    </a>
+    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fw-semibold">
+      Duplicate Groups: {{ total }}
+    </span>
+  </div>
+</div>
+
+
+<!-- Search & Filter Bar -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-3">
+    <form method="GET" action="/files/duplicates" class="row g-2 align-items-center">
+      <div class="col-md-9">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="Search by SHA-256 hash..." value="{{ query or '' }}">
+        </div>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i> Filter</button>
+        {% if query %}
+          <a href="/files/duplicates" class="btn btn-outline-secondary">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if groups %}
+  <!-- Accordion List of Duplicate Groups -->
+  <div class="accordion mb-4" id="duplicateAccordion">
+    {% for group in groups %}
+      <div class="accordion-item shadow-sm border-0 mb-3 rounded overflow-hidden">
+        <h2 class="accordion-header" id="heading-{{ group.id }}">
+          <button class="accordion-button {% if not loop.first %}collapsed{% endif %} bg-white py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ group.id }}">
+            <div class="d-flex flex-wrap justify-content-between align-items-center w-100 pe-3">
+              <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                  <i class="bi bi-copy me-1"></i> {{ group.duplicate_count }} Copies
+                </span>
+                <div>
+                  <span class="text-muted small">SHA-256:</span>
+                  <span class="font-monospace fw-bold text-dark">{{ group.sha256[:16] }}...{{ group.sha256[-12:] }}</span>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-3 text-muted small mt-2 mt-sm-0">
+                <span>FileSize: <strong>{{ ((group.file_size or 0) / 1024)|round(1) }} KB</strong></span>
+                <span>Wasted: <strong class="text-danger">{{ (((group.file_size or 0) * (group.duplicate_count - 1)) / 1024)|round(1) }} KB</strong></span>
+                <span class="d-none d-md-inline">Updated: {{ group.latest_seen_at[:19] if group.latest_seen_at else 'N/A' }}</span>
+              </div>
+            </div>
+          </button>
+        </h2>
+        <div id="collapse-{{ group.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ group.id }}" data-bs-parent="#duplicateAccordion">
+          <div class="accordion-body bg-light border-top">
+            
+            <!-- First Occurrence vs Latest Occurrence Highlights -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <div class="p-3 bg-white rounded border border-success-subtle h-100">
+                  <div class="d-flex align-items-center text-success mb-2">
+                    <i class="bi bi-flag-fill me-2"></i>
+                    <strong class="text-uppercase small">Original / First Seen Copy</strong>
+                  </div>
+                  {% if group.first_file %}
+                    <div class="fw-bold mb-1">
+                      <a href="/files/{{ group.first_file.id }}" class="text-decoration-none text-dark">
+                        {{ group.first_file.file_name }}
+                      </a>
+                    </div>
+                    <div class="font-monospace small text-muted text-truncate mb-2" title="{{ group.first_file.file_path }}">
+                      {{ group.first_file.file_path }}
+                    </div>
+                    <div class="small text-muted">
+                      First detected: <span class="font-monospace">{{ group.first_seen_at[:19] if group.first_seen_at else 'N/A' }}</span>
+                    </div>
+                  {% else %}
+                    <span class="text-muted small">File record unavailable.</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="p-3 bg-white rounded border border-info-subtle h-100">
+                  <div class="d-flex align-items-center text-info-emphasis mb-2">
+                    <i class="bi bi-clock-history me-2"></i>
+                    <strong class="text-uppercase small">Most Recent / Latest Copy</strong>
+                  </div>
+                  {% if group.latest_file %}
+                    <div class="fw-bold mb-1">
+                      <a href="/files/{{ group.latest_file.id }}" class="text-decoration-none text-dark">
+                        {{ group.latest_file.file_name }}
+                      </a>
+                    </div>
+                    <div class="font-monospace small text-muted text-truncate mb-2" title="{{ group.latest_file.file_path }}">
+                      {{ group.latest_file.file_path }}
+                    </div>
+                    <div class="small text-muted">
+                      Last detected: <span class="font-monospace">{{ group.latest_seen_at[:19] if group.latest_seen_at else 'N/A' }}</span>
+                    </div>
+                  {% else %}
+                    <span class="text-muted small">File record unavailable.</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Complete List of All Present Copies -->
+            <div class="card border-0">
+              <div class="card-header bg-white py-2 small fw-bold d-flex justify-content-between align-items-center">
+                <span>All Active Locations ({{ group.members|length }} instances)</span>
+                <div>
+                  <span class="font-monospace text-muted small me-2">{{ group.sha256 }}</span>
+                  <button class="copy-btn btn-sm" title="Copy full SHA-256" onclick="copyToClipboard('{{ group.sha256 }}', this)">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body p-0 table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 50px;">#</th>
+                      <th>File Name</th>
+                      <th>Full Path</th>
+                      <th style="width: 170px;">First Seen</th>
+                      <th style="width: 170px;">Last Seen</th>
+                      <th style="width: 80px;" class="text-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for m in group.members %}
+                      <tr>
+                        <td class="text-muted small">{{ loop.index }}</td>
+                        <td class="fw-semibold">
+                          <a href="/files/{{ m.file.id }}" class="text-decoration-none text-dark">
+                            {{ m.file.file_name }}
+                          </a>
+                        </td>
+                        <td class="font-monospace text-muted small text-truncate" style="max-width: 400px;" title="{{ m.file.file_path }}">
+                          {{ m.file.file_path }}
+                        </td>
+                        <td class="font-monospace text-muted small">{{ m.first_seen_at[:19] if m.first_seen_at else '-' }}</td>
+                        <td class="font-monospace text-muted small">{{ m.last_seen_at[:19] if m.last_seen_at else '-' }}</td>
+                        <td class="text-end">
+                          <a href="/files/{{ m.file.id }}" class="btn btn-sm btn-outline-secondary" title="Details">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total > limit %}
+    <div class="card shadow-sm border-0 py-3 px-3 d-flex flex-row justify-content-between align-items-center">
+      <span class="text-muted small">Showing {{ offset + 1 }} to {{ [offset + limit, total]|min }} of {{ total }} groups</span>
+      <div class="btn-group btn-group-sm">
+        {% if offset > 0 %}
+          <a href="/files/duplicates?offset={{ [0, offset - limit]|max }}&limit={{ limit }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline-secondary">&laquo; Previous</a>
+        {% endif %}
+        {% if offset + limit < total %}
+          <a href="/files/duplicates?offset={{ offset + limit }}&limit={{ limit }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline-secondary">Next &raquo;</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+{% else %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-check2-all fs-1 mb-2 d-block text-success"></i>
+      <h5>No duplicate file sets detected</h5>
+      <p class="small">Every monitored file on the storage array currently holds a distinct SHA-256 hash.</p>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

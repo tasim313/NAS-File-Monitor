@@ -1,0 +1,161 @@
+/* Custom modern styles for NAS File Monitoring & Duplicate Tracking System */
+
+:root {
+  --primary-color: #0d6efd;
+  --success-color: #198754;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --info-color: #0dcaf0;
+  --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+body {
+  background-color: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.card-stat {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.card-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.font-monospace {
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875em;
+}
+
+.badge-status {
+  padding: 0.35em 0.65em;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+}
+
+.badge-new {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
+
+.badge-existing {
+  background-color: #cff4fc;
+  color: #055160;
+}
+
+.badge-removed {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+.badge-duplicate {
+  background-color: #fff3cd;
+  color: #664d03;
+}
+
+.badge-modified {
+  background-color: #e2d9f3;
+  color: #432874;
+}
+
+/* Timeline styling for events */
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+  list-style: none;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 9px;
+  width: 2px;
+  background-color: #dee2e6;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -2rem;
+  top: 0.25rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #0d6efd;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px #dee2e6;
+}
+
+.timeline-dot.ADDED { background-color: #198754; }
+.timeline-dot.EXISTING { background-color: #0dcaf0; }
+.timeline-dot.MODIFIED { background-color: #6f42c1; }
+.timeline-dot.REMOVED { background-color: #dc3545; }
+.timeline-dot.RESTORED { background-color: #20c997; }
+.timeline-dot.DUPLICATE_DETECTED { background-color: #ffc107; }
+
+/* Pulse animation for active scan */
+.scanning-pulse {
+  display: inline-block;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.truncate-hash {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.copy-btn {
+  cursor: pointer;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: #6c757d;
+}
+
+.copy-btn:hover {
+  color: #0d6efd;
+}

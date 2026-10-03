@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file.file_name }} - File Details{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm mb-2">
+    <i class="bi bi-arrow-left me-1"></i> Back
+  </a>
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="h3 mb-1 fw-bold text-dark d-flex align-items-center">
+        <i class="bi bi-file-earmark-text text-primary me-2"></i> {{ file.file_name }}
+      </h2>
+      <p class="text-muted font-monospace small mb-0">{{ file.file_path }}</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge-status badge-{{ file.status.lower() }} fs-6">
+        {{ file.status }}
+      </span>
+      {% if file.is_present %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+          <i class="bi bi-check-circle-fill me-1"></i> Present on Disk
+        </span>
+      {% else %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">
+          <i class="bi bi-x-circle-fill me-1"></i> Removed from Disk
+        </span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Metadata Card -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h5 class="card-title mb-0 fw-bold fs-6">
+          <i class="bi bi-info-circle text-primary me-2"></i> File Metadata
+        </h5>
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">File ID:</span>
+            <span class="fw-semibold small">#{{ file.id }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">Relative Path:</span>
+            <span class="font-monospace small text-truncate" style="max-width: 260px;" title="{{ file.relative_path }}">{{ file.relative_path }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">File Size:</span>
+            <span class="font-monospace small">
+              {{ (file.file_size / 1024)|round(2) }} KB ({{ file.file_size }} bytes)
+            </span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">Disk Modified (mtime):</span>
+            <span class="font-monospace small">{{ file.mtime[:19] if file.mtime else '-' }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">First Discovered:</span>
+            <span class="font-monospace small text-success fw-semibold">{{ file.first_seen_at[:19] if file.first_seen_at else '-' }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted small">Last Verified:</span>
+            <span class="font-monospace small text-info-emphasis">{{ file.last_seen_at[:19] if file.last_seen_at else '-' }}</span>
+          </li>
+          {% if file.removed_at %}
+            <li class="list-group-item d-flex justify-content-between px-0">
+              <span class="text-muted small">Removed At:</span>
+              <span class="font-monospace small text-danger fw-semibold">{{ file.removed_at[:19] }}</span>
+            </li>
+          {% endif %}
+          <li class="list-group-item px-0 pt-3">
+            <div class="text-muted small mb-1">SHA-256 Checksum:</div>
+            {% if file.sha256 %}
+              <div class="p-2 bg-light rounded border d-flex justify-content-between align-items-center">
+                <span class="font-monospace small text-break user-select-all">{{ file.sha256 }}</span>
+                <button class="copy-btn ms-2" title="Copy SHA-256" onclick="copyToClipboard('{{ file.sha256 }}', this)">
+                  <i class="bi bi-clipboard"></i>
+                </button>
+              </div>
+            {% else %}
+              <span class="text-muted small">Not computed</span>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Duplicate Membership Card if duplicate -->
+    {% if file.is_duplicate and duplicate_groups %}
+      <div class="card shadow-sm border-0 border-start border-4 border-warning mb-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 fw-bold fs-6 text-warning-emphasis">
+            <i class="bi bi-files text-warning me-2"></i> Duplicate Membership
+          </h5>
+          <span class="badge bg-warning text-dark">Duplicate</span>
+        </div>
+        <div class="card-body">
+          <p class="small text-muted mb-3">This file belongs to a detected duplicate content group with matching SHA-256 hash.</p>
+          {% for dg in duplicate_groups %}
+            <div class="p-3 bg-light rounded border mb-2">
+              <div class="d-flex justify-content-between small mb-2">
+                <span>Group Copies: <strong>{{ dg.duplicate_count }}</strong></span>
+                <a href="/files/duplicates?q={{ dg.sha256 }}" class="text-decoration-none">View Full Group &rarr;</a>
+              </div>
+              <div class="small text-muted">
+                First seen: <span class="font-monospace">{{ dg.first_seen_at[:19] if dg.first_seen_at else '-' }}</span>
+              </div>
+              <div class="small text-muted">
+                Latest seen: <span class="font-monospace">{{ dg.latest_seen_at[:19] if dg.latest_seen_at else '-' }}</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Complete Event History Timeline -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h5 class="card-title mb-0 fw-bold fs-6">
+          <i class="bi bi-clock-history text-primary me-2"></i> Complete Event History Timeline
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        {% if file.events %}
+          <ul class="timeline mb-0">
+            {% for ev in file.events|reverse %}
+              <li class="timeline-item">
+                <span class="timeline-dot {{ ev.event_type }}"></span>
+                <div class="p-3 bg-light rounded border">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge-status badge-{{ ev.event_type.lower() }}">{{ ev.event_type }}</span>
+                    <span class="text-muted font-monospace small">{{ ev.event_time[:19] if ev.event_time else '-' }}</span>
+                  </div>
+                  <div class="small text-muted mt-2">
+                    {% if ev.event_type == 'ADDED' %}
+                      Discovered for the first time on the storage array. SHA-256 computed.
+                    {% elif ev.event_type == 'SEEN' %}
+                      Confirmed present on disk during periodic scanning. Metadata and hash intact.
+                    {% elif ev.event_type == 'MODIFIED' %}
+                      File content or modification time changed. Checksum updated.
+                    {% elif ev.event_type == 'REMOVED' %}
+                      File disappeared from storage directory. Status marked soft-deleted.
+                    {% elif ev.event_type == 'RESTORED' %}
+                      File restored back to disk at original location. Status reactivated.
+                    {% elif ev.event_type == 'DUPLICATE_DETECTED' %}
+                      Duplicate content identified matching another file on the system.
+                    {% endif %}
+                  </div>
+                  {% if ev.details %}
+                    <div class="mt-2 pt-2 border-top text-muted font-monospace" style="font-size: 0.75rem;">
+                      {{ ev.details }}
+                    </div>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-clock-history fs-1 mb-2 d-block"></i>
+            <p>No historical events logged for this file.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

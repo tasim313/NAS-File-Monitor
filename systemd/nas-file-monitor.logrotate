@@ -1,0 +1,10 @@
+/home/tasim/Python/NAS\ File\ Monitoring\ and\ Duplicate\ File\ Tracking\ System/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 tasim tasim
+    sharedscripts
+}

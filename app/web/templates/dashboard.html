@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - NAS File Monitoring System{% endblock %}
+
+{% block content %}
+<!-- Page Title and Status Banner -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h3 mb-1 fw-bold text-dark">System Dashboard</h2>
+    <p class="text-muted mb-0 small">Real-time status, file counts, and duplicate tracking overview.</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if system.nas_available %}
+      <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+        <i class="bi bi-check-circle-fill me-1"></i> NAS Connected
+      </span>
+    {% else %}
+      <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2" title="{{ system.nas_message }}">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> NAS Offline / Degraded
+      </span>
+    {% endif %}
+
+    {% if system.scanner_running %}
+      <span class="badge bg-primary px-3 py-2 scanning-pulse">
+        <i class="bi bi-arrow-repeat me-1"></i> Scan Running
+      </span>
+    {% else %}
+      <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">
+        <i class="bi bi-clock me-1"></i> Periodic ({{ system.scan_interval }}s)
+      </span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Metric Stat Cards -->
+<div class="row g-3 mb-4">
+  <!-- Total Files -->
+  <div class="col-sm-6 col-xl-2">
+    <a href="/search" class="text-decoration-none">
+      <div class="card card-stat h-100 p-3">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase">Total Monitored</div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ stats.total_files }}</div>
+          </div>
+          <div class="stat-icon bg-primary-subtle text-primary">
+            <i class="bi bi-folder2-open"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Newly Added Files -->
+  <div class="col-sm-6 col-xl-2">
+    <a href="/files/new" class="text-decoration-none">
+      <div class="card card-stat h-100 p-3 border-start border-4 border-success">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-success small fw-semibold text-uppercase">Newly Added</div>
+            <div class="h3 fw-bold mb-0 text-success">{{ stats.new_files }}</div>
+          </div>
+          <div class="stat-icon bg-success-subtle text-success">
+            <i class="bi bi-file-earmark-plus"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Previously Added Files -->
+  <div class="col-sm-6 col-xl-3">
+    <a href="/files/previous" class="text-decoration-none">
+      <div class="card card-stat h-100 p-3 border-start border-4 border-info">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-info small fw-semibold text-uppercase">Previously Added</div>
+            <div class="h3 fw-bold mb-0 text-info">{{ stats.existing_files }}</div>
+          </div>
+          <div class="stat-icon bg-info-subtle text-info">
+            <i class="bi bi-file-earmark-check"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Content Duplicates -->
+  <div class="col-sm-6 col-xl-3">
+    <a href="/files/duplicates" class="text-decoration-none">
+      <div class="card card-stat h-100 p-3 border-start border-4 border-warning">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-warning-emphasis small fw-semibold text-uppercase">Content Duplicates</div>
+            <div class="h3 fw-bold mb-0 text-warning-emphasis">{{ stats.duplicate_files }} <span class="fs-6 text-muted fw-normal">({{ stats.duplicate_groups }} groups)</span></div>
+          </div>
+          <div class="stat-icon bg-warning-subtle text-warning">
+            <i class="bi bi-files"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Removed Files -->
+  <div class="col-sm-6 col-xl-2">
+    <a href="/files/removed" class="text-decoration-none">
+      <div class="card card-stat h-100 p-3 border-start border-4 border-danger">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-danger small fw-semibold text-uppercase">Removed</div>
+            <div class="h3 fw-bold mb-0 text-danger">{{ stats.removed_files }}</div>
+          </div>
+          <div class="stat-icon bg-danger-subtle text-danger">
+            <i class="bi bi-file-earmark-x"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Latest Scan Details Card -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100 border-0">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 fw-bold fs-6">
+          <i class="bi bi-speedometer text-primary me-2"></i> Latest Scan Status
+        </h5>
+        {% if latest_scan %}
+          <span class="badge {% if latest_scan.status == 'COMPLETED' %}bg-success{% elif latest_scan.status == 'RUNNING' %}bg-primary{% else %}bg-danger{% endif %}">
+            {{ latest_scan.status }}
+          </span>
+        {% else %}
+          <span class="badge bg-secondary">No Scans</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if latest_scan %}
+          <div class="mb-3">
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted small">Scan ID:</span>
+              <span class="fw-semibold small">#{{ latest_scan.id }} ({{ latest_scan.trigger_type }})</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted small">Started:</span>
+              <span class="small font-monospace">{{ latest_scan.start_time[:19] if latest_scan.start_time else 'N/A' }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted small">Completed:</span>
+              <span class="small font-monospace">{{ latest_scan.end_time[:19] if latest_scan.end_time else 'In progress' }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted small">Duration:</span>
+              <span class="small fw-semibold">{{ "%.2f"|format(latest_scan.duration_seconds or 0) }}s</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted small">Monitored Files:</span>
+              <span class="small fw-bold">{{ latest_scan.total_files }}</span>
+            </div>
+          </div>
+
+          <div class="row g-2 text-center pt-2">
+            <div class="col-4">
+              <div class="p-2 bg-success-subtle rounded">
+                <div class="small text-success fw-bold">+{{ latest_scan.new_files_count }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">New</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 bg-info-subtle rounded">
+                <div class="small text-info fw-bold">{{ latest_scan.existing_files_count }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Existing</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-2 bg-danger-subtle rounded">
+                <div class="small text-danger fw-bold">-{{ latest_scan.removed_files_count }}</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Removed</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-hourglass-split fs-1 mb-2 d-block"></i>
+            <p>No scan execution recorded yet.</p>
+            <p class="small">Click <strong>SCAN NOW</strong> above to run the initial file scan.</p>
+          </div>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-white border-0 text-center pb-3">
+        <a href="/scans" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-clock-history me-1"></i> View Full Scan History
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity Ledger Card -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm h-100 border-0">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 fw-bold fs-6">
+          <i class="bi bi-activity text-primary me-2"></i> Recent File Activity
+        </h5>
+        <a href="/events" class="small text-decoration-none">View All Events &rarr;</a>
+      </div>
+      <div class="card-body p-0 table-responsive">
+        {% if recent_events %}
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+            <thead class="table-light">
+              <tr>
+                <th scope="col" style="width: 130px;">Event</th>
+                <th scope="col">File Name & Relative Path</th>
+                <th scope="col" style="width: 100px;">Size</th>
+                <th scope="col" style="width: 170px;">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in recent_events %}
+                <tr>
+                  <td>
+                    <span class="badge-status badge-{{ event.event_type.lower() }}">
+                      {{ event.event_type }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-truncate" style="max-width: 320px;" title="{{ event.file_name }}">
+                      <a href="/files/{{ event.file_id }}" class="text-decoration-none text-dark">
+                        {{ event.file_name }}
+                      </a>
+                    </div>
+                    <div class="text-muted font-monospace small text-truncate" style="max-width: 320px;" title="{{ event.file_path }}">
+                      {{ event.file_path }}
+                    </div>
+                  </td>
+                  <td>
+                    {% if event.file_size is not none %}
+                      {{ (event.file_size / 1024)|round(1) }} KB
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="text-muted font-monospace small">
+                    {{ event.event_time[:19] if event.event_time else '-' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-1 mb-2 d-block"></i>
+            <p>No activity events recorded yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
