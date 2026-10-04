@@ -145,11 +145,11 @@
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Started:</span>
-              <span id="scan-started-val" class="small font-monospace">{{ (latest_scan.start_time or latest_scan.started_at) | format_dhaka('N/A') }}</span>
+              <span class="small font-monospace">{{ latest_scan.start_time[:19] if latest_scan.start_time else 'N/A' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Completed:</span>
-              <span id="scan-completed-val" class="small font-monospace">{{ (latest_scan.end_time or latest_scan.completed_at) | format_dhaka('In progress') }}</span>
+              <span class="small font-monospace">{{ latest_scan.end_time[:19] if latest_scan.end_time else 'In progress' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Duration:</span>
@@ -243,12 +243,7 @@
                     {% endif %}
                   </td>
                   <td class="text-muted font-monospace small">
-                    <div>{{ event.event_time | format_dhaka }}</div>
-                    {% if event.file_mtime and event.file_mtime != event.event_time %}
-                      <div class="text-secondary" style="font-size: 0.72rem;" title="Original File Modification Timestamp">
-                        <i class="bi bi-calendar-event me-1"></i>mtime: {{ event.file_mtime | format_dhaka }}
-                      </div>
-                    {% endif %}
+                    {{ event.event_time[:19] if event.event_time else '-' }}
                   </td>
                 </tr>
               {% endfor %}

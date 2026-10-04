@@ -114,7 +114,7 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ file.last_seen_at | format_dhaka }}
+                {{ file.last_seen_at[:19] if file.last_seen_at else '-' }}
               </td>
               <td class="text-end">
                 <a href="/files/{{ file.id }}" class="btn btn-sm btn-outline-primary" title="View Details">

@@ -49,9 +49,8 @@
             <th scope="col" style="width: 50px;">#</th>
             <th scope="col">File Name & Relative Path</th>
             <th scope="col" style="width: 110px;">Size</th>
-            <th scope="col" style="width: 200px;">SHA-256 Hash</th>
-            <th scope="col" style="width: 160px;">Modified (mtime)</th>
-            <th scope="col" style="width: 160px;">First Seen</th>
+            <th scope="col" style="width: 220px;">SHA-256 Hash</th>
+            <th scope="col" style="width: 170px;">First Seen</th>
             <th scope="col" style="width: 110px;">Duplicate?</th>
             <th scope="col" style="width: 80px;" class="text-end">Actions</th>
           </tr>
@@ -66,7 +65,7 @@
                     {{ file.file_name }}
                   </a>
                 </div>
-                <div class="text-muted font-monospace small text-truncate" style="max-width: 420px;" title="{{ file.file_path }}">
+                <div class="text-muted font-monospace small text-truncate" style="max-width: 450px;" title="{{ file.file_path }}">
                   {{ file.file_path }}
                 </div>
               </td>
@@ -84,10 +83,7 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ file.mtime | format_dhaka }}
-              </td>
-              <td class="text-muted font-monospace small">
-                {{ file.first_seen_at | format_dhaka }}
+                {{ file.first_seen_at[:19] if file.first_seen_at else '-' }}
               </td>
               <td>
                 {% if file.is_duplicate %}
