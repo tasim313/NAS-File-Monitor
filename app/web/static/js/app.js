@@ -2,6 +2,54 @@
  * JavaScript helpers for NAS File Monitoring & Duplicate Tracking System
  */
 
+/**
+ * Format an ISO date string or timestamp into Asia/Dhaka (+06:00) 12-hour format:
+ * YYYY-MM-DD hh:mm:ss AM/PM
+ * Example: 2026-10-03 04:12:23 PM
+ */
+function formatDhaka12h(val) {
+  if (!val || val === "-" || val === "N/A") return "-";
+  try {
+    let date;
+    if (typeof val === "string") {
+      let s = val.trim();
+      if (!s.endsWith("Z") && !s.includes("+") && !s.slice(10).includes("-")) {
+        s = s.replace(" ", "T") + "Z";
+      }
+      date = new Date(s);
+    } else if (val instanceof Date) {
+      date = val;
+    } else if (typeof val === "number") {
+      date = new Date(val);
+    } else {
+      return "-";
+    }
+
+    if (isNaN(date.getTime())) return String(val);
+
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Dhaka",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+
+    const parts = formatter.formatToParts(date);
+    const p = {};
+    for (const part of parts) {
+      p[part.type] = part.value;
+    }
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.dayPeriod}`;
+  } catch (e) {
+    return String(val);
+  }
+}
+window.formatDhaka12h = formatDhaka12h;
+
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize tooltips if Bootstrap is available
   if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
