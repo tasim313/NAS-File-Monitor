@@ -63,7 +63,7 @@
               <div class="d-flex align-items-center gap-3 text-muted small mt-2 mt-sm-0">
                 <span>FileSize: <strong>{{ ((group.file_size or 0) / 1024)|round(1) }} KB</strong></span>
                 <span>Wasted: <strong class="text-danger">{{ (((group.file_size or 0) * (group.duplicate_count - 1)) / 1024)|round(1) }} KB</strong></span>
-                <span class="d-none d-md-inline">Updated: {{ group.latest_seen_at[:19] if group.latest_seen_at else 'N/A' }}</span>
+                <span class="d-none d-md-inline">Updated: {{ group.latest_seen_at | format_dhaka('N/A') }}</span>
               </div>
             </div>
           </button>
@@ -89,7 +89,7 @@
                       {{ group.first_file.file_path }}
                     </div>
                     <div class="small text-muted">
-                      First detected: <span class="font-monospace">{{ group.first_seen_at[:19] if group.first_seen_at else 'N/A' }}</span>
+                      First detected: <span class="font-monospace">{{ group.first_seen_at | format_dhaka('N/A') }}</span>
                     </div>
                   {% else %}
                     <span class="text-muted small">File record unavailable.</span>
@@ -113,7 +113,7 @@
                       {{ group.latest_file.file_path }}
                     </div>
                     <div class="small text-muted">
-                      Last detected: <span class="font-monospace">{{ group.latest_seen_at[:19] if group.latest_seen_at else 'N/A' }}</span>
+                      Last detected: <span class="font-monospace">{{ group.latest_seen_at | format_dhaka('N/A') }}</span>
                     </div>
                   {% else %}
                     <span class="text-muted small">File record unavailable.</span>
@@ -157,8 +157,8 @@
                         <td class="font-monospace text-muted small text-truncate" style="max-width: 400px;" title="{{ m.file.file_path }}">
                           {{ m.file.file_path }}
                         </td>
-                        <td class="font-monospace text-muted small">{{ m.first_seen_at[:19] if m.first_seen_at else '-' }}</td>
-                        <td class="font-monospace text-muted small">{{ m.last_seen_at[:19] if m.last_seen_at else '-' }}</td>
+                        <td class="font-monospace text-muted small">{{ m.first_seen_at | format_dhaka }}</td>
+                        <td class="font-monospace text-muted small">{{ m.last_seen_at | format_dhaka }}</td>
                         <td class="text-end">
                           <a href="/files/{{ m.file.id }}" class="btn btn-sm btn-outline-secondary" title="Details">
                             <i class="bi bi-eye"></i>

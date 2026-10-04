@@ -62,7 +62,7 @@
             <th scope="col">File Name & Path</th>
             <th scope="col" style="width: 100px;">Size</th>
             <th scope="col" style="width: 200px;">SHA-256</th>
-            <th scope="col" style="width: 170px;">Timestamp</th>
+            <th scope="col" style="width: 200px;">Timestamp (Asia/Dhaka)</th>
             <th scope="col" style="width: 80px;" class="text-end">File</th>
           </tr>
         </thead>
@@ -99,7 +99,12 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ ev.event_time[:19] if ev.event_time else '-' }}
+                <div>{{ ev.event_time | format_dhaka }}</div>
+                {% if ev.file_mtime and ev.file_mtime != ev.event_time %}
+                  <div class="text-secondary" style="font-size: 0.72rem;" title="Original File Modification Timestamp">
+                    <i class="bi bi-calendar-event me-1"></i>mtime: {{ ev.file_mtime | format_dhaka }}
+                  </div>
+                {% endif %}
               </td>
               <td class="text-end">
                 <a href="/files/{{ ev.file_id }}" class="btn btn-sm btn-outline-secondary" title="View File">

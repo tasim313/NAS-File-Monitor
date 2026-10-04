@@ -6,6 +6,45 @@
  */
 
 (function () {
+  const formatDhaka12h = window.formatDhaka12h || function (val) {
+    if (!val || val === "-" || val === "N/A") return "-";
+    try {
+      let date;
+      if (typeof val === "string") {
+        let s = val.trim();
+        if (!s.endsWith("Z") && !s.includes("+") && !s.slice(10).includes("-")) {
+          s = s.replace(" ", "T") + "Z";
+        }
+        date = new Date(s);
+      } else if (val instanceof Date) {
+        date = val;
+      } else if (typeof val === "number") {
+        date = new Date(val);
+      } else {
+        return "-";
+      }
+      if (isNaN(date.getTime())) return String(val);
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Dhaka",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+      const parts = formatter.formatToParts(date);
+      const p = {};
+      for (const part of parts) {
+        p[part.type] = part.value;
+      }
+      return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.dayPeriod}`;
+    } catch (e) {
+      return String(val);
+    }
+  };
+
   let socket = null;
   let reconnectTimer = null;
   let pingTimer = null;
@@ -220,6 +259,10 @@
         ? `${(ev.file_size / 1024).toFixed(1)} KB`
         : "-";
       const formattedTime = typeof formatDhaka12h === "function" ? formatDhaka12h(ev.event_time) : (ev.event_time || "-");
+      const mtimeFormatted = ev.file_mtime && typeof formatDhaka12h === "function" ? formatDhaka12h(ev.file_mtime) : null;
+      const mtimeHtml = mtimeFormatted && mtimeFormatted !== formattedTime
+        ? `<div class="text-secondary" style="font-size: 0.72rem;" title="Original File Modification Timestamp"><i class="bi bi-calendar-event me-1"></i>mtime: ${mtimeFormatted}</div>`
+        : "";
 
       return `
         <tr>
@@ -240,7 +283,8 @@
           </td>
           <td>${sizeStr}</td>
           <td class="text-muted font-monospace small">
-            ${formattedTime}
+            <div>${formattedTime}</div>
+            ${mtimeHtml}
           </td>
         </tr>
       `;

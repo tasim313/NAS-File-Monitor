@@ -20,6 +20,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from app.datetime_util import format_dhaka_12h
+
 
 def utc_now() -> datetime:
     """Return timezone-aware current UTC datetime."""
@@ -110,9 +112,13 @@ class File(Base):
             "file_size": self.file_size,
             "sha256": self.sha256,
             "mtime": self.mtime.isoformat() if self.mtime else None,
+            "mtime_dhaka": format_dhaka_12h(self.mtime) if self.mtime else None,
             "first_seen_at": self.first_seen_at.isoformat() if self.first_seen_at else None,
+            "first_seen_at_dhaka": format_dhaka_12h(self.first_seen_at) if self.first_seen_at else None,
             "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+            "last_seen_at_dhaka": format_dhaka_12h(self.last_seen_at) if self.last_seen_at else None,
             "removed_at": self.removed_at.isoformat() if self.removed_at else None,
+            "removed_at_dhaka": format_dhaka_12h(self.removed_at) if self.removed_at else None,
             "is_present": self.is_present,
             "is_duplicate": self.is_duplicate,
             "status": self.status,
@@ -149,11 +155,15 @@ class FileEvent(Base):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert FileEvent instance to dictionary."""
+        file_mtime = self.file.mtime if self.file else None
         return {
             "id": self.id,
             "file_id": self.file_id,
             "event_type": self.event_type,
             "event_time": self.event_time.isoformat() if self.event_time else None,
+            "event_time_dhaka": format_dhaka_12h(self.event_time) if self.event_time else None,
+            "file_mtime": file_mtime.isoformat() if file_mtime else None,
+            "file_mtime_dhaka": format_dhaka_12h(file_mtime) if file_mtime else None,
             "file_path": self.file_path,
             "file_name": self.file_name,
             "sha256": self.sha256,
@@ -185,16 +195,31 @@ class ScanRun(Base):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert ScanRun instance to dictionary."""
+        duration = None
+        if self.started_at and self.completed_at:
+            duration = max(0.0, (self.completed_at - self.started_at).total_seconds())
+
         return {
             "id": self.id,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "start_time": self.started_at.isoformat() if self.started_at else None,
+            "end_time": self.completed_at.isoformat() if self.completed_at else None,
+            "started_at_dhaka": format_dhaka_12h(self.started_at) if self.started_at else None,
+            "completed_at_dhaka": format_dhaka_12h(self.completed_at) if self.completed_at else None,
+            "duration_seconds": duration,
+            "trigger_type": "SCHEDULED",
             "status": self.status,
             "total_files": self.total_files,
             "new_files": self.new_files,
+            "new_files_count": self.new_files,
             "existing_files": self.existing_files,
+            "existing_files_count": self.existing_files,
             "removed_files": self.removed_files,
+            "removed_files_count": self.removed_files,
             "duplicate_files": self.duplicate_files,
+            "duplicate_files_count": self.duplicate_files,
+            "modified_files_count": 0,
             "error_count": self.error_count,
             "error_message": self.error_message,
         }
@@ -261,7 +286,9 @@ class DuplicateGroup(Base):
             "duplicate_count": self.duplicate_count,
             "file_size": self.file_size,
             "first_seen_at": self.first_seen_at.isoformat() if self.first_seen_at else None,
+            "first_seen_at_dhaka": format_dhaka_12h(self.first_seen_at) if self.first_seen_at else None,
             "latest_seen_at": self.latest_seen_at.isoformat() if self.latest_seen_at else None,
+            "latest_seen_at_dhaka": format_dhaka_12h(self.latest_seen_at) if self.latest_seen_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -306,5 +333,7 @@ class DuplicateMember(Base):
             "duplicate_group_id": self.duplicate_group_id,
             "file_id": self.file_id,
             "first_seen_at": self.first_seen_at.isoformat() if self.first_seen_at else None,
+            "first_seen_at_dhaka": format_dhaka_12h(self.first_seen_at) if self.first_seen_at else None,
             "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+            "last_seen_at_dhaka": format_dhaka_12h(self.last_seen_at) if self.last_seen_at else None,
         }

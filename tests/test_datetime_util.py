@@ -48,3 +48,34 @@ def test_format_dhaka_empty_or_none():
     assert format_dhaka_12h(None) == "-"
     assert format_dhaka_12h("") == "-"
     assert format_dhaka_12h(None, default="N/A") == "N/A"
+
+
+def test_models_to_dict_dhaka_formatting():
+    from app.database.models import File, FileEvent, ScanRun
+    now_utc = datetime(2026, 9, 30, 14, 7, 43, tzinfo=timezone.utc)
+    f = File(
+        file_name="HPL2609-00280.pdf",
+        file_path="/media/requisition/Report/HPL2609-00280.pdf",
+        relative_path="HPL2609-00280.pdf",
+        file_size=120891,
+        sha256="abc123def456",
+        mtime=now_utc,
+        first_seen_at=now_utc,
+        last_seen_at=now_utc,
+    )
+    d = f.to_dict()
+    assert d["mtime_dhaka"] == "2026-09-30 08:07:43 PM"
+    assert d["first_seen_at_dhaka"] == "2026-09-30 08:07:43 PM"
+
+    ev = FileEvent(
+        event_type="ADDED",
+        event_time=now_utc,
+        file_path="/media/requisition/Report/HPL2609-00280.pdf",
+        file_name="HPL2609-00280.pdf",
+        sha256="abc123def456",
+        file_size=120891,
+    )
+    ev.file = f
+    ev_d = ev.to_dict()
+    assert ev_d["event_time_dhaka"] == "2026-09-30 08:07:43 PM"
+    assert ev_d["file_mtime_dhaka"] == "2026-09-30 08:07:43 PM"
