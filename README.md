@@ -114,3 +114,51 @@ Check health status:
 ```bash
 curl http://localhost:8000/api/health
 ```
+
+---
+
+## Running with Docker
+
+### Option 1: Docker Compose (Recommended)
+
+Start the entire system with persistent storage, volume mounts for NAS monitoring, and automatic restart:
+
+```bash
+# Build and start in background
+docker compose up -d --build
+
+# View real-time logs
+docker compose logs -f
+
+# Check container status & health
+docker compose ps
+
+# Stop the container
+docker compose down
+```
+
+### Option 2: Docker CLI
+
+```bash
+# 1. Build the Docker image
+docker build -t nas-file-monitor:latest .
+
+# 2. Run the container with NAS volume mount and persistent data
+docker run -d \
+  --name nas-file-monitor \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v /media/requisition/Report:/media/requisition/Report:ro \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  nas-file-monitor:latest
+
+# 3. Check logs
+docker logs -f nas-file-monitor
+```
+
+### Access URLs
+- **Web UI & Dashboard**: `http://localhost:8000/` or `http://<SERVER_IP>:8000/`
+- **WebSocket Live API Explorer**: `http://localhost:8000/websocket-api`
+- **Interactive REST Docs**: `http://localhost:8000/api-docs` or `http://localhost:8000/docs`
+- **WebSocket Streaming Endpoint**: `ws://localhost:8000/ws`

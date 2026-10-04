@@ -1,0 +1,38 @@
+services:
+  nas-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nas-file-monitor
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Target directory inside container to monitor
+      - NAS_DIRECTORY=/media/requisition/Report
+      # SQLite database storage path
+      - DATABASE_URL=sqlite:///data/nas_monitor.db
+      # Periodic background scan frequency in seconds (default: 60)
+      - SCAN_INTERVAL=60
+      # File stability wait threshold in seconds (default: 5)
+      - FILE_STABILITY_SECONDS=5
+      # Cryptographic hash algorithm for content duplicates
+      - HASH_ALGORITHM=sha256
+      # Application log level
+      - LOG_LEVEL=INFO
+      # Server host and port
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    volumes:
+      # Mount host NAS directory (read-only for security and integrity)
+      - /media/requisition/Report:/media/requisition/Report:ro
+      # Persistent SQLite database storage
+      - ./data:/app/data
+      # Persistent application logs
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

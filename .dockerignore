@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Virtual Environments & Python Cache
+.venv
+venv
+ENV
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+
+# System & IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/*.log
+
+# Database temporary locks
+data/*.db-journal
