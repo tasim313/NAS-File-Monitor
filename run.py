@@ -40,6 +40,20 @@ def run_single_scan():
         db.close()
 
 
+def get_lan_ip() -> str:
+    """Detect the host machine primary LAN IP address."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
 def main():
     """Parse CLI options and run either web server or one-off scan."""
     parser = argparse.ArgumentParser(
@@ -72,15 +86,17 @@ def main():
     settings = get_settings()
     host = args.host or settings.APP_HOST
     port = args.port or settings.APP_PORT
+    lan_ip = get_lan_ip()
 
     print("\n" + "=" * 70)
     print("  🚀 NAS File Monitoring and Duplicate File Tracking System")
     print("=" * 70)
     print(f"  • Localhost Access:  http://localhost:{port}/")
     print(f"  • Loopback Access:   http://127.0.0.1:{port}/")
-    print(f"  • Network/LAN IP:    http://192.168.1.30:{port}/")
-    print(f"  • WebSocket Live:    ws://localhost:{port}/ws  &  ws://192.168.1.30:{port}/ws")
-    print(f"  • REST & Swagger:    http://localhost:{port}/docs")
+    print(f"  • Server LAN IP:     http://{lan_ip}:{port}/")
+    print(f"  • WebSocket Live:    ws://{lan_ip}:{port}/ws  &  ws://localhost:{port}/ws")
+    print(f"  • Web WS Explorer:   http://{lan_ip}:{port}/websocket-api")
+    print(f"  • REST & Swagger:    http://{lan_ip}:{port}/docs")
     print(f"  • Listening on:      {host}:{port} (All Network Interfaces)")
     print("=" * 70 + "\n")
 
