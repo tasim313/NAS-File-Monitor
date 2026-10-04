@@ -83,7 +83,7 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ file.first_seen_at[:19] if file.first_seen_at else '-' }}
+                {{ file.first_seen_at | format_dhaka }}
               </td>
               <td>
                 {% if file.is_duplicate %}
