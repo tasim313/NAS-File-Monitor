@@ -9,8 +9,9 @@ import json
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
@@ -168,6 +169,52 @@ def create_app() -> FastAPI:
     @app.websocket("/api/v1/ws")
     async def api_v1_websocket_endpoint(websocket: WebSocket):
         await handle_websocket_connection(websocket)
+
+    # HTTP GET fallbacks for WebSocket endpoints
+    @app.get("/ws", tags=["WebSocket"])
+    @app.get("/api/ws", tags=["WebSocket"])
+    @app.get("/api/v1/ws", tags=["WebSocket"])
+    def websocket_http_fallback(request: Request):
+        """HTTP GET fallback for WebSocket endpoints.
+
+        When opened in a web browser, automatically redirects to the interactive
+        WebSocket Live API Explorer (/websocket-api). When accessed via cURL or API
+        clients, returns helpful connection instructions and current live system state.
+        """
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept and "application/json" not in accept:
+            return RedirectResponse(url="/websocket-api", status_code=303)
+
+        from app.database.database import SessionLocal
+        from app.websocket_manager import build_dashboard_payload
+
+        db = SessionLocal()
+        try:
+            current_payload = build_dashboard_payload(db)
+        finally:
+            db.close()
+
+        host = request.headers.get("host") or f"{settings.APP_HOST}:{settings.APP_PORT}"
+        ws_protocol = "wss://" if request.url.scheme == "https" else "ws://"
+        ws_url = f"{ws_protocol}{host}/ws"
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "online",
+                "endpoint": "/ws",
+                "protocol": "WebSocket (RFC 6455)",
+                "message": "WebSocket endpoint is active. Connect using WebSocket protocol or use the Interactive Web Explorer.",
+                "websocket_url": ws_url,
+                "interactive_web_explorer": f"{request.url.scheme}://{host}/websocket-api",
+                "how_to_connect": {
+                    "browser_javascript": f"const ws = new WebSocket('{ws_url}'); ws.onmessage = (e) => console.log(JSON.parse(e.data));",
+                    "python_client": f"import websockets, asyncio; asyncio.run((await websockets.connect('{ws_url}')).recv())",
+                    "curl_websocket": f"curl -i -N -H \"Connection: Upgrade\" -H \"Upgrade: websocket\" -H \"Sec-WebSocket-Version: 13\" -H \"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\" http://{host}/ws",
+                },
+                "data": current_payload,
+            },
+        )
 
     # Top-level health endpoints
     @app.get("/health", tags=["System"])
