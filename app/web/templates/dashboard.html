@@ -145,11 +145,11 @@
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Started:</span>
-              <span class="small font-monospace">{{ latest_scan.start_time | format_dhaka }}</span>
+              <span class="small font-monospace">{{ latest_scan.start_time[:19] if latest_scan.start_time else 'N/A' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Completed:</span>
-              <span class="small font-monospace">{{ latest_scan.end_time | format_dhaka if latest_scan.end_time else 'In progress' }}</span>
+              <span class="small font-monospace">{{ latest_scan.end_time[:19] if latest_scan.end_time else 'In progress' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Duration:</span>
@@ -243,7 +243,7 @@
                     {% endif %}
                   </td>
                   <td class="text-muted font-monospace small">
-                    {{ event.event_time | format_dhaka }}
+                    {{ event.event_time[:19] if event.event_time else '-' }}
                   </td>
                 </tr>
               {% endfor %}

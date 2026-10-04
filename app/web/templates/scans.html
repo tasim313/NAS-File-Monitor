@@ -55,7 +55,7 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ scan.start_time | format_dhaka }}
+                {{ scan.start_time[:19] if scan.start_time else '-' }}
               </td>
               <td class="font-monospace small">
                 {{ "%.2f"|format(scan.duration_seconds or 0) }}s

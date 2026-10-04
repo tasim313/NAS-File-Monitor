@@ -99,7 +99,7 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ ev.event_time | format_dhaka }}
+                {{ ev.event_time[:19] if ev.event_time else '-' }}
               </td>
               <td class="text-end">
                 <a href="/files/{{ ev.file_id }}" class="btn btn-sm btn-outline-secondary" title="View File">

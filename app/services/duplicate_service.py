@@ -12,22 +12,6 @@ from app.logging_config import get_logger
 logger = get_logger("app.scanner")
 
 
-def extract_duplicate_key(file_name: str) -> Optional[str]:
-    """Extract duplicate tracking key from filename (e.g. prefix before first underscore).
-    
-    Examples:
-        '2609-32907_126556.pdf' -> '2609-32907'
-        '2610-00287_126667.pdf' -> '2610-00287'
-        '2610-00286_126662.pdf' -> '2610-00286'
-        'report.pdf' -> None
-    """
-    if "_" in file_name:
-        prefix = file_name.split("_", 1)[0].strip()
-        if prefix:
-            return prefix
-    return None
-
-
 class DuplicateService:
     """Manages duplicate file groups, first vs latest occurrences, and member relationships."""
 
@@ -37,7 +21,7 @@ class DuplicateService:
         target_hashes: Optional[Set[str]] = None,
         sync_time: Optional[datetime] = None,
     ) -> List[DuplicateGroup]:
-        """Synchronize duplicate groups and file statuses based on filename prefix keys and SHA-256 hashes.
+        """Synchronize duplicate groups and file statuses based on SHA-256 content hashes.
         
         Args:
             db: Database session.
@@ -50,158 +34,114 @@ class DuplicateService:
         now = sync_time or utc_now()
         active_groups: List[DuplicateGroup] = []
 
-        # 1. Fetch all currently present files ordered chronologically
-        present_files = list(
-            db.scalars(
-                select(File)
-                .where(File.is_present.is_(True))
-                .order_by(File.first_seen_at.asc(), File.mtime.asc(), File.file_name.asc(), File.id.asc())
-            ).all()
+        # Find all hashes and their counts among present files
+        query = (
+            select(File.sha256, func.count(File.id).label("cnt"))
+            .where(File.is_present.is_(True))
+            .group_by(File.sha256)
         )
+        if target_hashes is not None:
+            query = query.where(File.sha256.in_(target_hashes))
 
-        # 2. Group by filename duplicate key (prefix before first underscore)
-        prefix_groups: Dict[str, List[File]] = {}
-        for f in present_files:
-            key = extract_duplicate_key(f.file_name)
-            if key:
-                prefix_groups.setdefault(key, []).append(f)
+        hash_counts = db.execute(query).all()
 
-        # Active prefix groups have at least 2 copies
-        active_prefix_groups = {
-            k: files for k, files in prefix_groups.items() if len(files) >= 2
-        }
-
-        # 3. Group by content hash (SHA-256)
-        hash_groups: Dict[str, List[File]] = {}
-        for f in present_files:
-            if f.sha256:
-                if target_hashes is not None and f.sha256 not in target_hashes:
-                    continue
-                hash_groups.setdefault(f.sha256, []).append(f)
-
-        # Active content hash groups have at least 2 copies and are not already identical to an active prefix group
-        active_hash_groups: Dict[str, List[File]] = {}
-        for sha, files in hash_groups.items():
-            if len(files) >= 2:
-                file_prefixes = {extract_duplicate_key(f.file_name) for f in files}
-                if len(file_prefixes) == 1 and (next(iter(file_prefixes)) in active_prefix_groups):
-                    # Redundant: already grouped together by filename prefix
-                    continue
-                active_hash_groups[sha] = files
-
-        # 4. Combine duplicate groups (prefix groups prioritized, then hash groups)
-        target_groups: Dict[str, List[File]] = {}
-        for k, files in active_prefix_groups.items():
-            target_groups[k] = files
-        for sha, files in active_hash_groups.items():
-            if sha not in target_groups:
-                target_groups[sha] = files
-
-        # 5. Fetch all existing DuplicateGroup records in DB
-        all_existing_groups = list(db.scalars(select(DuplicateGroup)).all())
-        existing_group_map = {g.sha256: g for g in all_existing_groups}
-
-        active_duplicate_file_ids: Set[int] = set()
-        file_to_group_map: Dict[int, DuplicateGroup] = {}
-        group_first_files: Dict[int, File] = {}
-
-        for identifier, files in target_groups.items():
-            # Chronological sort: first seen first, then mtime, then filename
-            files.sort(key=lambda x: (x.first_seen_at or now, x.mtime or now, x.file_name, x.id))
-            first_file = files[0]
-            latest_file = files[-1]
-
-            group = existing_group_map.get(identifier)
-            if not group:
-                group = DuplicateGroup(
-                    sha256=identifier,
-                    first_file_id=first_file.id,
-                    latest_file_id=latest_file.id,
-                    duplicate_count=len(files),
-                    first_seen_at=first_file.first_seen_at,
-                    latest_seen_at=latest_file.first_seen_at,
-                    created_at=now,
-                    updated_at=now,
-                )
-                db.add(group)
-                db.flush()
-                logger.info("New duplicate group created for '%s' (count: %d)", identifier, len(files))
-            else:
-                group.first_file_id = first_file.id
-                group.latest_file_id = latest_file.id
-                group.duplicate_count = len(files)
-                group.first_seen_at = first_file.first_seen_at
-                group.latest_seen_at = latest_file.first_seen_at
-                group.updated_at = now
-                db.flush()
-
-            group_first_files[group.id] = first_file
-
-            # Synchronize members
-            existing_member_file_ids = set(
+        for sha256_hash, count in hash_counts:
+            # Query all present files sharing this hash, ordered chronologically
+            files = list(
                 db.scalars(
-                    select(DuplicateMember.file_id).where(
-                        DuplicateMember.duplicate_group_id == group.id
-                    )
+                    select(File)
+                    .where(File.sha256 == sha256_hash, File.is_present.is_(True))
+                    .order_by(File.first_seen_at.asc(), File.id.asc())
                 ).all()
             )
 
-            for f in files:
-                active_duplicate_file_ids.add(f.id)
-                file_to_group_map[f.id] = group
+            # Look up existing DuplicateGroup
+            group = db.scalar(
+                select(DuplicateGroup).where(DuplicateGroup.sha256 == sha256_hash)
+            )
 
-                if f.id not in existing_member_file_ids:
-                    member = DuplicateMember(
-                        duplicate_group_id=group.id,
-                        file_id=f.id,
-                        first_seen_at=f.first_seen_at,
-                        last_seen_at=f.last_seen_at,
+            if len(files) >= 2:
+                # We have a duplicate group!
+                first_file = files[0]
+                latest_file = files[-1]
+
+                if not group:
+                    group = DuplicateGroup(
+                        sha256=sha256_hash,
+                        first_file_id=first_file.id,
+                        latest_file_id=latest_file.id,
+                        duplicate_count=len(files),
+                        first_seen_at=first_file.first_seen_at,
+                        latest_seen_at=latest_file.first_seen_at,
+                        created_at=now,
+                        updated_at=now,
                     )
-                    db.add(member)
+                    db.add(group)
+                    db.flush()
+                    logger.info("New duplicate group created for SHA256 %s (count: %d)", sha256_hash, len(files))
                 else:
-                    member_record = db.scalar(
-                        select(DuplicateMember).where(
-                            DuplicateMember.duplicate_group_id == group.id,
-                            DuplicateMember.file_id == f.id,
+                    group.first_file_id = first_file.id
+                    group.latest_file_id = latest_file.id
+                    group.duplicate_count = len(files)
+                    group.first_seen_at = first_file.first_seen_at
+                    group.latest_seen_at = latest_file.first_seen_at
+                    group.updated_at = now
+                    db.flush()
+
+                # Synchronize members and file statuses
+                existing_member_file_ids = set(
+                    db.scalars(
+                        select(DuplicateMember.file_id).where(
+                            DuplicateMember.duplicate_group_id == group.id
                         )
-                    )
-                    if member_record:
-                        member_record.last_seen_at = f.last_seen_at
+                    ).all()
+                )
 
-            active_groups.append(group)
+                for f in files:
+                    was_duplicate = f.is_duplicate
+                    f.is_duplicate = True
 
-        # 6. Deactivate groups that are not among active target groups
-        for identifier, group in existing_group_map.items():
-            if identifier not in target_groups:
-                group.duplicate_count = 0
+                    # Record DUPLICATE_DETECTED event on first identification as a duplicate
+                    if not was_duplicate:
+                        event = FileEvent(
+                            file_id=f.id,
+                            event_type="DUPLICATE_DETECTED",
+                            event_time=now,
+                            file_path=f.file_path,
+                            file_name=f.file_name,
+                            sha256=f.sha256,
+                            file_size=f.file_size,
+                            details=f"Duplicate content identified in group #{group.id} (first file: {first_file.file_name})",
+                        )
+                        db.add(event)
+
+                    if f.id not in existing_member_file_ids:
+                        member = DuplicateMember(
+                            duplicate_group_id=group.id,
+                            file_id=f.id,
+                            first_seen_at=f.first_seen_at,
+                            last_seen_at=f.last_seen_at,
+                        )
+                        db.add(member)
+                    else:
+                        # Update member last_seen_at
+                        member_record = db.scalar(
+                            select(DuplicateMember).where(
+                                DuplicateMember.duplicate_group_id == group.id,
+                                DuplicateMember.file_id == f.id,
+                            )
+                        )
+                        if member_record:
+                            member_record.last_seen_at = f.last_seen_at
+
+                active_groups.append(group)
+
+            elif group and len(files) < 2:
+                # Group dropped below 2 present copies
+                group.duplicate_count = len(files)
                 group.updated_at = now
-
-        # 7. Update is_duplicate status and create DUPLICATE_DETECTED events
-        for f in present_files:
-            was_duplicate = f.is_duplicate
-            if f.id in active_duplicate_file_ids:
-                f.is_duplicate = True
-                if not was_duplicate:
-                    grp = file_to_group_map[f.id]
-                    first_file = group_first_files.get(grp.id, f)
-                    details = (
-                        f"Duplicate content identified in group #{grp.id} (first file: {first_file.file_name})"
-                        if len(grp.sha256) == 64
-                        else f"Duplicate key identified in group #{grp.id} ({grp.sha256}, first file: {first_file.file_name})"
-                    )
-                    event = FileEvent(
-                        file_id=f.id,
-                        event_type="DUPLICATE_DETECTED",
-                        event_time=now,
-                        file_path=f.file_path,
-                        file_name=f.file_name,
-                        sha256=f.sha256,
-                        file_size=f.file_size,
-                        details=details,
-                    )
-                    db.add(event)
-            else:
-                f.is_duplicate = False
+                if len(files) == 1:
+                    files[0].is_duplicate = False
 
         db.flush()
         return active_groups
