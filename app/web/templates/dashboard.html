@@ -41,7 +41,7 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-muted small fw-semibold text-uppercase">Total Monitored</div>
-            <div class="h3 fw-bold mb-0 text-dark" id="stat-total-files">{{ stats.total_files }}</div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ stats.total_files }}</div>
           </div>
           <div class="stat-icon bg-primary-subtle text-primary">
             <i class="bi bi-folder2-open"></i>
@@ -58,7 +58,7 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-success small fw-semibold text-uppercase">Newly Added</div>
-            <div class="h3 fw-bold mb-0 text-success" id="stat-new-files">{{ stats.new_files }}</div>
+            <div class="h3 fw-bold mb-0 text-success">{{ stats.new_files }}</div>
           </div>
           <div class="stat-icon bg-success-subtle text-success">
             <i class="bi bi-file-earmark-plus"></i>
@@ -75,7 +75,7 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-info small fw-semibold text-uppercase">Previously Added</div>
-            <div class="h3 fw-bold mb-0 text-info" id="stat-existing-files">{{ stats.existing_files }}</div>
+            <div class="h3 fw-bold mb-0 text-info">{{ stats.existing_files }}</div>
           </div>
           <div class="stat-icon bg-info-subtle text-info">
             <i class="bi bi-file-earmark-check"></i>
@@ -92,7 +92,7 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-warning-emphasis small fw-semibold text-uppercase">Content Duplicates</div>
-            <div class="h3 fw-bold mb-0 text-warning-emphasis" id="stat-duplicate-files">{{ stats.duplicate_files }} <span class="fs-6 text-muted fw-normal">({{ stats.duplicate_groups }} groups)</span></div>
+            <div class="h3 fw-bold mb-0 text-warning-emphasis">{{ stats.duplicate_files }} <span class="fs-6 text-muted fw-normal">({{ stats.duplicate_groups }} groups)</span></div>
           </div>
           <div class="stat-icon bg-warning-subtle text-warning">
             <i class="bi bi-files"></i>
@@ -109,7 +109,7 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="text-danger small fw-semibold text-uppercase">Removed</div>
-            <div class="h3 fw-bold mb-0 text-danger" id="stat-removed-files">{{ stats.removed_files }}</div>
+            <div class="h3 fw-bold mb-0 text-danger">{{ stats.removed_files }}</div>
           </div>
           <div class="stat-icon bg-danger-subtle text-danger">
             <i class="bi bi-file-earmark-x"></i>
@@ -129,11 +129,11 @@
           <i class="bi bi-speedometer text-primary me-2"></i> Latest Scan Status
         </h5>
         {% if latest_scan %}
-          <span id="scan-status-badge" class="badge {% if latest_scan.status == 'COMPLETED' %}bg-success{% elif latest_scan.status == 'RUNNING' %}bg-primary{% else %}bg-danger{% endif %}">
+          <span class="badge {% if latest_scan.status == 'COMPLETED' %}bg-success{% elif latest_scan.status == 'RUNNING' %}bg-primary{% else %}bg-danger{% endif %}">
             {{ latest_scan.status }}
           </span>
         {% else %}
-          <span id="scan-status-badge" class="badge bg-secondary">No Scans</span>
+          <span class="badge bg-secondary">No Scans</span>
         {% endif %}
       </div>
       <div class="card-body">
@@ -141,42 +141,42 @@
           <div class="mb-3">
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Scan ID:</span>
-              <span class="fw-semibold small" id="scan-id-val">#{{ latest_scan.id }} ({{ latest_scan.trigger_type }})</span>
+              <span class="fw-semibold small">#{{ latest_scan.id }} ({{ latest_scan.trigger_type }})</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Started:</span>
-              <span class="small font-monospace" id="scan-started-val">{{ latest_scan.start_time | format_dhaka }}</span>
+              <span class="small font-monospace">{{ latest_scan.start_time | format_dhaka }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Completed:</span>
-              <span class="small font-monospace" id="scan-completed-val">{{ latest_scan.end_time | format_dhaka if latest_scan.end_time else 'In progress' }}</span>
+              <span class="small font-monospace">{{ latest_scan.end_time | format_dhaka if latest_scan.end_time else 'In progress' }}</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Duration:</span>
-              <span class="small fw-semibold" id="scan-duration-val">{{ "%.2f"|format(latest_scan.duration_seconds or 0) }}s</span>
+              <span class="small fw-semibold">{{ "%.2f"|format(latest_scan.duration_seconds or 0) }}s</span>
             </div>
             <div class="d-flex justify-content-between py-1 border-bottom">
               <span class="text-muted small">Monitored Files:</span>
-              <span class="small fw-bold" id="scan-total-val">{{ latest_scan.total_files }}</span>
+              <span class="small fw-bold">{{ latest_scan.total_files }}</span>
             </div>
           </div>
 
           <div class="row g-2 text-center pt-2">
             <div class="col-4">
               <div class="p-2 bg-success-subtle rounded">
-                <div class="small text-success fw-bold" id="scan-new-val">+{{ latest_scan.new_files_count }}</div>
+                <div class="small text-success fw-bold">+{{ latest_scan.new_files_count }}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">New</div>
               </div>
             </div>
             <div class="col-4">
               <div class="p-2 bg-info-subtle rounded">
-                <div class="small text-info fw-bold" id="scan-existing-val">{{ latest_scan.existing_files_count }}</div>
+                <div class="small text-info fw-bold">{{ latest_scan.existing_files_count }}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">Existing</div>
               </div>
             </div>
             <div class="col-4">
               <div class="p-2 bg-danger-subtle rounded">
-                <div class="small text-danger fw-bold" id="scan-removed-val">-{{ latest_scan.removed_files_count }}</div>
+                <div class="small text-danger fw-bold">-{{ latest_scan.removed_files_count }}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">Removed</div>
               </div>
             </div>
