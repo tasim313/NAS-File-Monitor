@@ -83,10 +83,10 @@
                 {% endif %}
               </td>
               <td class="text-muted font-monospace small">
-                {{ file.first_seen_at[:19] if file.first_seen_at else '-' }}
+                {{ file.first_seen_at | format_dhaka }}
               </td>
               <td class="text-danger font-monospace small fw-semibold">
-                {{ file.removed_at[:19] if file.removed_at else '-' }}
+                {{ file.removed_at | format_dhaka }}
               </td>
               <td class="text-end">
                 <a href="/files/{{ file.id }}" class="btn btn-sm btn-outline-secondary" title="View History">

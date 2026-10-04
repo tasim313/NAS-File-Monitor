@@ -58,20 +58,20 @@
           </li>
           <li class="list-group-item d-flex justify-content-between px-0">
             <span class="text-muted small">Disk Modified (mtime):</span>
-            <span class="font-monospace small">{{ file.mtime[:19] if file.mtime else '-' }}</span>
+            <span class="font-monospace small">{{ file.mtime | format_dhaka }}</span>
           </li>
           <li class="list-group-item d-flex justify-content-between px-0">
             <span class="text-muted small">First Discovered:</span>
-            <span class="font-monospace small text-success fw-semibold">{{ file.first_seen_at[:19] if file.first_seen_at else '-' }}</span>
+            <span class="font-monospace small text-success fw-semibold">{{ file.first_seen_at | format_dhaka }}</span>
           </li>
           <li class="list-group-item d-flex justify-content-between px-0">
             <span class="text-muted small">Last Verified:</span>
-            <span class="font-monospace small text-info-emphasis">{{ file.last_seen_at[:19] if file.last_seen_at else '-' }}</span>
+            <span class="font-monospace small text-info-emphasis">{{ file.last_seen_at | format_dhaka }}</span>
           </li>
           {% if file.removed_at %}
             <li class="list-group-item d-flex justify-content-between px-0">
               <span class="text-muted small">Removed At:</span>
-              <span class="font-monospace small text-danger fw-semibold">{{ file.removed_at[:19] }}</span>
+              <span class="font-monospace small text-danger fw-semibold">{{ file.removed_at | format_dhaka }}</span>
             </li>
           {% endif %}
           <li class="list-group-item px-0 pt-3">
@@ -109,10 +109,10 @@
                 <a href="/files/duplicates?q={{ dg.sha256 }}" class="text-decoration-none">View Full Group &rarr;</a>
               </div>
               <div class="small text-muted">
-                First seen: <span class="font-monospace">{{ dg.first_seen_at[:19] if dg.first_seen_at else '-' }}</span>
+                First seen: <span class="font-monospace">{{ dg.first_seen_at | format_dhaka }}</span>
               </div>
               <div class="small text-muted">
-                Latest seen: <span class="font-monospace">{{ dg.latest_seen_at[:19] if dg.latest_seen_at else '-' }}</span>
+                Latest seen: <span class="font-monospace">{{ dg.latest_seen_at | format_dhaka }}</span>
               </div>
             </div>
           {% endfor %}
@@ -138,7 +138,7 @@
                 <div class="p-3 bg-light rounded border">
                   <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="badge-status badge-{{ ev.event_type.lower() }}">{{ ev.event_type }}</span>
-                    <span class="text-muted font-monospace small">{{ ev.event_time[:19] if ev.event_time else '-' }}</span>
+                    <span class="text-muted font-monospace small">{{ ev.event_time | format_dhaka }}</span>
                   </div>
                   <div class="small text-muted mt-2">
                     {% if ev.event_type == 'ADDED' %}
