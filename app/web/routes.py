@@ -364,6 +364,9 @@ def file_detail_view(file_id: int, request: Request, db: Session = Depends(get_d
 
 
 @web_router.get("/api-docs", response_class=HTMLResponse)
+@web_router.get("/api-docs/", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/api-doc", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/api-documents", response_class=HTMLResponse, include_in_schema=False)
 def api_documents_view(request: Request):
     """Render API Documents and endpoint reference page."""
     ctx = _common_context(request, "api_docs")
@@ -371,6 +374,13 @@ def api_documents_view(request: Request):
 
 
 @web_router.get("/websocket-api", response_class=HTMLResponse)
+@web_router.get("/websocket-api/", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/websocket-ap", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/websocket-ap/", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/websocket", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/websocket/", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/ws-api", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/ws-api/", response_class=HTMLResponse, include_in_schema=False)
 def websocket_api_view(request: Request):
     """Render interactive WebSocket Live API Explorer for querying and streaming data."""
     ctx = _common_context(request, "websocket_api")

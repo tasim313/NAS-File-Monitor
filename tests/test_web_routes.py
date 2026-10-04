@@ -189,3 +189,12 @@ def test_api_documents_view(client, populated_web_db):
     assert "Mostasim Mahmud Tasim" in res.text
     assert "ApiDocuments" in res.text
 
+
+def test_websocket_api_view_and_aliases(client, populated_web_db):
+    """Verify /websocket-api and its aliases (/websocket-ap, /ws-api, etc.) all return 200."""
+    for path in ["/websocket-api", "/websocket-api/", "/websocket-ap", "/ws-api", "/websocket"]:
+        res = client.get(path)
+        assert res.status_code == 200
+        assert "WebSocket Live API Explorer" in res.text
+        assert "Mostasim Mahmud Tasim" in res.text
+
