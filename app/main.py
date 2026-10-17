@@ -48,8 +48,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler = get_scan_scheduler()
     scheduler.start()
 
+    # Start Brother Syslog Receiver
+    from app.printer.syslog_receiver import syslog_receiver
+    syslog_receiver.start()
+
     # Track main event loop in WebSocket manager
     import asyncio
+    import threading
     from app.websocket_manager import ws_manager
 
     try:
@@ -57,9 +62,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         pass
 
+    # Launch non-blocking background initialization for Printer and LDAP
+    def _initial_printer_and_ldap_sync() -> None:
+        try:
+            from app.database.database import SessionLocal
+            from app.printer.collector import printer_collector
+            from app.printer.ldap_service import ldap_service
+            db = SessionLocal()
+            try:
+                printer_collector.ensure_syslog_configured()
+                printer_collector.poll_device_status(db)
+                ldap_service.sync_users_from_ldap(db)
+                printer_collector.correlate_nas_scans(db)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning("Initial printer/LDAP sync background warning: %s", e)
+
+    threading.Thread(target=_initial_printer_and_ldap_sync, name="InitialPrinterSync", daemon=True).start()
+
     yield
 
     logger.info("Shutting down NAS File Monitoring System...")
+    syslog_receiver.stop()
     scheduler.stop(wait=False)
 
 

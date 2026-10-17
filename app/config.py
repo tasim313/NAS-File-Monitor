@@ -91,6 +91,59 @@ class Settings(BaseSettings):
         description="Allowed CORS origins",
     )
 
+    # Brother MFC-L6900DW Printer & Scanner Settings
+    PRINTER_ENABLED: bool = Field(
+        default=True,
+        description="Enable Brother printer and scanner integration",
+    )
+    PRINTER_HOST: str = Field(
+        default="192.168.4.171",
+        description="IP address or hostname of Brother MFC-L6900DW",
+    )
+    PRINTER_PASSWORD: str = Field(
+        default="initpass",
+        description="Web management admin password for Brother printer",
+    )
+    PRINTER_POLL_INTERVAL: int = Field(
+        default=120,
+        ge=10,
+        description="Interval in seconds for polling printer status and counters",
+    )
+    PRINTER_SYSLOG_ENABLED: bool = Field(
+        default=True,
+        description="Enable UDP Syslog listener for real-time printer audit events",
+    )
+    PRINTER_SYSLOG_HOST: str = Field(
+        default="0.0.0.0",
+        description="Interface to bind Syslog UDP receiver",
+    )
+    PRINTER_SYSLOG_PORT: int = Field(
+        default=1514,
+        ge=1024,
+        le=65535,
+        description="UDP port for Brother Syslog audit messages",
+    )
+
+    # OpenLDAP Settings
+    LDAP_ENABLED: bool = Field(
+        default=True,
+        description="Enable OpenLDAP user synchronization and authentication lookup",
+    )
+    LDAP_SERVER: str = Field(
+        default="192.168.1.19",
+        description="OpenLDAP server host or IP",
+    )
+    LDAP_PORT: int = Field(
+        default=389,
+        ge=1,
+        le=65535,
+        description="OpenLDAP server port",
+    )
+    LDAP_BASE_DN: str = Field(
+        default="dc=aikhanlab,dc=com",
+        description="Search base DN for OpenLDAP directory",
+    )
+
     @field_validator("LOG_DIR", "DATA_DIR", mode="after")
     @classmethod
     def resolve_relative_dir(cls, v: Path) -> Path:

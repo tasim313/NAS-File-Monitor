@@ -337,3 +337,157 @@ class DuplicateMember(Base):
             "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
             "last_seen_at_dhaka": format_dhaka_12h(self.last_seen_at) if self.last_seen_at else None,
         }
+
+
+class PrinterDevice(Base):
+    """Represents a Brother MFC-L6900DW hardware device status and lifetime counters."""
+
+    __tablename__ = "printer_devices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ip_address: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False, default="Brother MFC-L6900DW series")
+    node_name: Mapped[str] = mapped_column(String(64), nullable=False, default="brw485f99ca71a8")
+    serial_number: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="Ready", index=True)
+    toner_level: Mapped[int] = mapped_column(Integer, nullable=False, default=80)
+    drum_level: Mapped[int] = mapped_column(Integer, nullable=False, default=98)
+
+    total_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_printed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_scanned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_copied: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_jams: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    last_error: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    error_history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_polled_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert PrinterDevice instance to dictionary."""
+        return {
+            "id": self.id,
+            "ip_address": self.ip_address,
+            "model_name": self.model_name,
+            "node_name": self.node_name,
+            "serial_number": self.serial_number or "-",
+            "status": self.status,
+            "toner_level": self.toner_level,
+            "drum_level": self.drum_level,
+            "total_pages": self.total_pages,
+            "total_printed": self.total_printed,
+            "total_scanned": self.total_scanned,
+            "total_copied": self.total_copied,
+            "total_jams": self.total_jams,
+            "last_error": self.last_error or "None",
+            "error_history": self.error_history,
+            "last_polled_at": self.last_polled_at.isoformat() if self.last_polled_at else None,
+            "last_polled_at_dhaka": format_dhaka_12h(self.last_polled_at) if self.last_polled_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "updated_at_dhaka": format_dhaka_12h(self.updated_at) if self.updated_at else None,
+        }
+
+
+class PrinterLog(Base):
+    """Audit log for print, scan, copy, and OpenLDAP user access events."""
+
+    __tablename__ = "printer_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utc_now, index=True
+    )
+    event_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="PRINT", index=True
+    )  # PRINT, SCAN, COPY, LOGIN, LOGOUT, AUTH_FAIL
+    username: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    user_display_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    user_department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    client_pc: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    document_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    document_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default="PDF")
+    page_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    two_sided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="SUCCESS", index=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="SYSLOG")
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utc_now
+    )
+
+    __table_args__ = (
+        Index("idx_printer_logs_time_type", "timestamp", "event_type"),
+        Index("idx_printer_logs_user", "username"),
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert PrinterLog instance to dictionary with Asia/Dhaka 12-hour formatted timestamp."""
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "timestamp_dhaka": format_dhaka_12h(self.timestamp) if self.timestamp else None,
+            "event_type": self.event_type,
+            "username": self.username,
+            "user_display_name": self.user_display_name or self.username,
+            "user_department": self.user_department or "-",
+            "client_pc": self.client_pc or "-",
+            "document_name": self.document_name or "-",
+            "document_type": self.document_type or "DOCUMENT",
+            "page_count": self.page_count,
+            "two_sided": self.two_sided,
+            "status": self.status,
+            "source": self.source,
+            "details": self.details,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at_dhaka": format_dhaka_12h(self.created_at) if self.created_at else None,
+        }
+
+
+class LdapUser(Base):
+    """Cached directory user synchronized from OpenLDAP."""
+
+    __tablename__ = "ldap_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    uid: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    cn: Mapped[str] = mapped_column(String(128), nullable=False)
+    mail: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    mobile: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    employee_number: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    login_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    print_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    scan_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert LdapUser instance to dictionary."""
+        return {
+            "id": self.id,
+            "uid": self.uid,
+            "cn": self.cn,
+            "mail": self.mail or "-",
+            "department": self.department or "-",
+            "title": self.title or "-",
+            "mobile": self.mobile or "-",
+            "employee_number": self.employee_number or "-",
+            "login_count": self.login_count,
+            "print_count": self.print_count,
+            "scan_count": self.scan_count,
+            "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+            "last_seen_at_dhaka": format_dhaka_12h(self.last_seen_at) if self.last_seen_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

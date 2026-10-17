@@ -259,4 +259,174 @@
     </div>
   </div>
 </div>
+
+<!-- Brother MFC-L6900DW & OpenLDAP Multifunction Device Section -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <h5 class="card-title mb-0 fw-bold fs-6">
+        <i class="bi bi-printer-fill text-primary me-2"></i> Brother MFC-L6900DW Multifunction Device
+      </h5>
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+        {{ printer_status.ip_address if printer_status else '192.168.4.171' }}
+      </span>
+      {% if printer_status and printer_status.status == 'Ready' %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+          <i class="bi bi-check-circle-fill me-1"></i> Ready
+        </span>
+      {% elif printer_status and printer_status.status == 'Sleep' %}
+        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+          <i class="bi bi-moon-stars-fill me-1"></i> Sleep
+        </span>
+      {% else %}
+        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
+          {{ printer_status.status if printer_status else 'Online' }}
+        </span>
+      {% endif %}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-info-subtle text-info border border-info-subtle small font-monospace">
+        OpenLDAP: 192.168.1.19:389
+      </span>
+      <a href="/printer/logs" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-journal-text me-1"></i> View All Audit Logs &rarr;
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Printer Metrics Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6 col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small fw-semibold">Toner Remaining</span>
+            <span class="fw-bold">{{ printer_status.toner_level if printer_status else 80 }}%</span>
+          </div>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-dark" style="width: {{ printer_status.toner_level if printer_status else 80 }}%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-3 bg-light rounded border">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small fw-semibold">Drum Remaining</span>
+            <span class="fw-bold text-info">{{ printer_status.drum_level if printer_status else 98 }}%</span>
+          </div>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-info" style="width: {{ printer_status.drum_level if printer_status else 98 }}%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="text-muted small fw-semibold">Total Scanned</div>
+          <div class="h5 fw-bold mb-0 text-success">{{ "{:,}".format(printer_status.total_scanned if printer_status else 37832) }}</div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="text-muted small fw-semibold">Total Printed</div>
+          <div class="h5 fw-bold mb-0 text-primary">{{ "{:,}".format(printer_status.total_printed if printer_status else 19609) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tables Row: Recent Print/Scan Jobs & Recent LDAP Logins -->
+    <div class="row g-4">
+      <!-- Recent Print/Scan Jobs -->
+      <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold small text-muted text-uppercase">Recent Print &amp; Scan Activity</span>
+          <a href="/printer/logs" class="small text-decoration-none">More &rarr;</a>
+        </div>
+        <div class="table-responsive border rounded">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 75px;">Type</th>
+                <th>User (OpenLDAP)</th>
+                <th>Document Name</th>
+                <th>Client PC</th>
+                <th class="text-center" style="width: 60px;">Pages</th>
+                <th style="width: 140px;">Timestamp (Dhaka)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if recent_printer_logs %}
+                {% for log in recent_printer_logs %}
+                  <tr>
+                    <td>
+                      {% if log.event_type == 'PRINT' %}
+                        <span class="badge bg-primary px-2 py-1">PRINT</span>
+                      {% elif log.event_type == 'SCAN' %}
+                        <span class="badge bg-success px-2 py-1">SCAN</span>
+                      {% elif log.event_type == 'LOGIN' %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border px-2 py-1">LOGIN</span>
+                      {% else %}
+                        <span class="badge bg-secondary px-2 py-1">{{ log.event_type }}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="fw-semibold">{{ log.user_display_name }}</span>
+                      <span class="badge bg-light text-secondary border small">{{ log.username }}</span>
+                    </td>
+                    <td class="text-truncate" style="max-width: 220px;" title="{{ log.document_name }}">
+                      {{ log.document_name }}
+                    </td>
+                    <td class="font-monospace small text-muted">{{ log.client_pc }}</td>
+                    <td class="text-center font-monospace fw-bold">{{ log.page_count }}</td>
+                    <td class="font-monospace text-muted small">{{ log.timestamp_dhaka }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    No recent print or scan activities recorded.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent OpenLDAP Logins -->
+      <div class="col-lg-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold small text-muted text-uppercase">Recent LDAP Logins</span>
+          <span class="badge bg-warning-subtle text-warning-emphasis border">MFC-L6900DW</span>
+        </div>
+        <div class="border rounded p-2 bg-light">
+          {% if recent_ldap_logins %}
+            <ul class="list-group list-group-flush bg-transparent">
+              {% for login in recent_ldap_logins %}
+                <li class="list-group-item bg-transparent px-2 py-2 d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold small">{{ login.user_display_name }}</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">
+                      {{ login.username }} &bull; {{ login.user_department }}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Success</span>
+                    <div class="text-muted font-monospace" style="font-size: 0.7rem;">
+                      {{ login.timestamp_dhaka }}
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="text-center py-4 text-muted small">
+              <i class="bi bi-shield-lock fs-3 mb-1 d-block"></i>
+              No recent LDAP login events yet.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

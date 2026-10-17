@@ -41,6 +41,18 @@ class ScanScheduler:
         finally:
             db.close()
 
+    def _execute_scheduled_printer_poll(self) -> None:
+        """Background job function to poll Brother printer status and correlate NAS scans."""
+        from app.printer.collector import printer_collector
+        db = SessionLocal()
+        try:
+            printer_collector.poll_device_status(db)
+            printer_collector.correlate_nas_scans(db)
+        except Exception as e:
+            logger.warning("Periodic printer poll failed: %s", e)
+        finally:
+            db.close()
+
     def start(self) -> None:
         """Start the background scheduler."""
         with self._lock:
@@ -48,6 +60,7 @@ class ScanScheduler:
                 logger.info("Scheduler is already running.")
                 return
 
+            settings = get_settings()
             self._scheduler = BackgroundScheduler(daemon=True)
             self._scheduler.add_job(
                 func=self._execute_scheduled_scan,
@@ -57,6 +70,15 @@ class ScanScheduler:
                 replace_existing=True,
                 max_instances=1,
             )
+            if settings.PRINTER_ENABLED:
+                self._scheduler.add_job(
+                    func=self._execute_scheduled_printer_poll,
+                    trigger=IntervalTrigger(seconds=settings.PRINTER_POLL_INTERVAL),
+                    id="periodic_printer_poll",
+                    name="Periodic Brother Printer Metrics Poll",
+                    replace_existing=True,
+                    max_instances=1,
+                )
             self._scheduler.start()
             logger.info("Background scan scheduler started with interval of %d seconds.", self.interval_seconds)
 

@@ -103,6 +103,13 @@ def build_dashboard_payload(db: Session, scan_id: int | None = None) -> Dict[str
     latest_scan = ScanService.get_latest_scan_run(db)
     recent_events = FileService.get_file_events(db, limit=10)
 
+    printer_status = None
+    try:
+        from app.printer.service import printer_service
+        printer_status = printer_service.get_device_status(db)
+    except Exception:
+        pass
+
     return {
         "stats": {
             "total_files": total_present,
@@ -114,6 +121,7 @@ def build_dashboard_payload(db: Session, scan_id: int | None = None) -> Dict[str
         },
         "latest_scan": latest_scan.to_dict() if latest_scan else None,
         "recent_events": [e.to_dict() for e in recent_events],
+        "printer_status": printer_status,
     }
 
 
@@ -431,6 +439,35 @@ def handle_ws_api_command(db: Session, command: Dict[str, Any]) -> Dict[str, Any
                 "status": "error",
                 "data": {"detail": str(e)},
             }
+
+    elif action == "get_printer_status":
+        from app.printer.service import printer_service
+        status = printer_service.get_device_status(db)
+        return {
+            "type": "PRINTER_STATUS_DATA",
+            "action": action,
+            "status": "success",
+            "data": status,
+        }
+
+    elif action == "get_printer_logs":
+        from app.printer.service import printer_service
+        event_type = params.get("event_type")
+        username = params.get("username")
+        result = printer_service.get_logs(
+            db,
+            event_type=event_type,
+            username=username,
+            search=query,
+            limit=limit,
+            offset=offset,
+        )
+        return {
+            "type": "PRINTER_LOGS_DATA",
+            "action": action,
+            "status": "success",
+            "data": result,
+        }
 
     else:
         return {
