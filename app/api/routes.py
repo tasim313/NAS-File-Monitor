@@ -515,3 +515,153 @@ def export_duplicates(
     )
 
 
+# =========================================================================
+# Brother MFC-L6900DW & OpenLDAP API Endpoints
+# =========================================================================
+
+@router.get("/printer/status", summary="Get Brother MFC-L6900DW Status")
+def api_get_printer_status(db: Session = Depends(get_db)):
+    """Retrieve live status, toner level, drum life, and page counters of Brother MFC-L6900DW."""
+    from app.printer.service import printer_service
+    status = printer_service.get_device_status(db)
+    if not status:
+        raise HTTPException(status_code=404, detail="Printer status unavailable")
+    return status
+
+
+@router.get("/printer/logs", summary="Get Printer & Scanner Audit Logs")
+def api_get_printer_logs(
+    event_type: Optional[str] = Query(None, description="Filter by event type (PRINT, SCAN, COPY, LOGIN, ALL)"),
+    username: Optional[str] = Query(None, description="Filter by LDAP username"),
+    search: Optional[str] = Query(None, description="Search term for document name, user, or PC"),
+    limit: int = Query(50, ge=1, le=500, description="Page size"),
+    offset: int = Query(0, ge=0, description="Offset"),
+    db: Session = Depends(get_db),
+):
+    """Query Brother MFC-L6900DW print, scan, copy, and OpenLDAP access logs with filtering."""
+    from app.printer.service import printer_service
+    return printer_service.get_logs(
+        db,
+        event_type=event_type,
+        username=username,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/printer/sync", summary="Trigger Printer & Scan Sync")
+def api_sync_printer(db: Session = Depends(get_db)):
+    """Trigger on-demand polling of printer EWS metrics and correlation of NAS scans."""
+    from app.printer.service import printer_service
+    return printer_service.sync_all(db)
+
+
+@router.get("/printer/ldap-users", summary="Get OpenLDAP Users")
+def api_get_ldap_users(
+    search: Optional[str] = Query(None, description="Search by name, uid, or department"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Retrieve cached OpenLDAP users and their printer activity statistics."""
+    from app.printer.service import printer_service
+    return printer_service.get_ldap_users(db, search=search, limit=limit, offset=offset)
+
+
+@router.post("/printer/ldap-sync", summary="Synchronize OpenLDAP Directory")
+def api_sync_ldap(db: Session = Depends(get_db)):
+    """Synchronize person entries from OpenLDAP directory (192.168.1.19:389)."""
+    from app.printer.ldap_service import ldap_service
+    count = ldap_service.sync_users_from_ldap(db)
+    return {"status": "success", "users_synced": count}
+
+
+@router.post("/printer/test-log", summary="Create Test Printer Audit Event")
+def api_create_test_printer_log(
+    event_type: str = Query("PRINT", description="Event type: PRINT, SCAN, COPY, LOGIN"),
+    username: str = Query("tasim", description="LDAP username"),
+    document_name: str = Query("Requisition_Test_Report.pdf", description="Document name"),
+    pages: int = Query(2, ge=1, description="Page count"),
+    db: Session = Depends(get_db),
+):
+    """Inject a test audit log event into the system to verify live broadcasts and UI presentation."""
+    from app.database.models import PrinterLog
+    from app.datetime_util import utc_now
+    from app.printer.ldap_service import ldap_service
+    from app.websocket_manager import ws_manager
+
+    user_info = ldap_service.resolve_user(username, db=db)
+    log = PrinterLog(
+        timestamp=utc_now(),
+        event_type=event_type.upper(),
+        username=user_info["uid"],
+        user_display_name=user_info["cn"],
+        user_department=user_info["department"],
+        client_pc="Workstation-IT (192.168.1.30)",
+        document_name=document_name,
+        document_type="PDF",
+        page_count=pages,
+        two_sided=False,
+        status="SUCCESS",
+        source="TEST_API",
+        details="Manual test event triggered via API",
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    ws_manager.broadcast_sync({
+        "type": "printer_log_event",
+        "payload": log.to_dict(),
+    })
+    return {"status": "success", "log": log.to_dict()}
+
+
+@router.get("/export/printer-logs", summary="Export Printer & Scanner Logs")
+def api_export_printer_logs(
+    format: str = Query("csv", regex="^(csv|json)$"),
+    event_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Export Brother printer audit logs as CSV or JSON."""
+    from app.database.models import PrinterLog
+    import csv
+    import io
+    from fastapi.responses import JSONResponse, Response
+
+    query = db.query(PrinterLog)
+    if event_type and event_type.upper() != "ALL":
+        query = query.filter(PrinterLog.event_type == event_type.upper())
+    logs = query.order_by(PrinterLog.timestamp.desc()).all()
+
+    if format == "json":
+        return JSONResponse(content=[l.to_dict() for l in logs])
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID", "Timestamp (Dhaka)", "Event Type", "User ID", "Full Name",
+        "Department", "Client PC", "Document Name", "Pages", "Status"
+    ])
+    for l in logs:
+        writer.writerow([
+            l.id,
+            l.to_dict().get("timestamp_dhaka", ""),
+            l.event_type,
+            l.username,
+            l.user_display_name or l.username,
+            l.user_department or "-",
+            l.client_pc or "-",
+            l.document_name or "-",
+            l.page_count,
+            l.status,
+        ])
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=printer_audit_logs.csv"},
+    )
+
+

@@ -94,6 +94,13 @@ def dashboard_view(request: Request, db: Session = Depends(get_db)):
         "latest_scan": latest_scan.to_dict() if latest_scan else None,
         "recent_events": [e.to_dict() for e in recent_events],
     })
+
+    # Brother MFC-L6900DW and OpenLDAP context
+    from app.printer.service import printer_service
+    ctx["printer_status"] = printer_service.get_device_status(db)
+    ctx["recent_printer_logs"] = printer_service.get_logs(db, limit=8)["items"]
+    ctx["recent_ldap_logins"] = printer_service.get_logs(db, event_type="LOGIN", limit=5)["items"]
+
     return templates.TemplateResponse(request=request, name="dashboard.html", context=ctx)
 
 
@@ -385,5 +392,46 @@ def websocket_api_view(request: Request):
     """Render interactive WebSocket Live API Explorer for querying and streaming data."""
     ctx = _common_context(request, "websocket_api")
     return templates.TemplateResponse(request=request, name="websocket_api.html", context=ctx)
+
+
+@web_router.get("/printer", response_class=HTMLResponse)
+@web_router.get("/printer/", response_class=HTMLResponse, include_in_schema=False)
+@web_router.get("/printer/logs", response_class=HTMLResponse)
+@web_router.get("/printer/logs/", response_class=HTMLResponse, include_in_schema=False)
+def printer_logs_view(
+    request: Request,
+    event_type: Optional[str] = Query(None),
+    user: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Render Brother MFC-L6900DW print, scan, copy, and OpenLDAP access audit logs view."""
+    from app.printer.service import printer_service
+    status = printer_service.get_device_status(db)
+    logs_result = printer_service.get_logs(
+        db,
+        event_type=event_type,
+        username=user,
+        search=q,
+        limit=limit,
+        offset=offset,
+    )
+    ldap_users_result = printer_service.get_ldap_users(db, limit=200)
+
+    ctx = _common_context(request, "printer_logs")
+    ctx.update({
+        "printer_status": status,
+        "logs": logs_result["items"],
+        "total_logs": logs_result["total"],
+        "limit": limit,
+        "offset": offset,
+        "selected_type": event_type or "ALL",
+        "selected_user": user or "",
+        "query": q or "",
+        "ldap_users": ldap_users_result["items"],
+    })
+    return templates.TemplateResponse(request=request, name="printer_logs.html", context=ctx)
 
 

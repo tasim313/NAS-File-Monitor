@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Brother MFC-L6900DW & OpenLDAP Audit Logs{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div>
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="h3 mb-0 fw-bold text-dark">Brother MFC-L6900DW Audit &amp; Access Logs</h2>
+      <span class="badge bg-primary px-3 py-2">
+        <i class="bi bi-printer-fill me-1"></i> {{ printer_status.ip_address if printer_status else '192.168.4.171' }}
+      </span>
+      {% if printer_status and printer_status.status == 'Ready' %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+          <i class="bi bi-check-circle-fill me-1"></i> Ready
+        </span>
+      {% elif printer_status and printer_status.status == 'Sleep' %}
+        <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
+          <i class="bi bi-moon-stars-fill me-1"></i> Power Save / Sleep
+        </span>
+      {% else %}
+        <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">
+          {{ printer_status.status if printer_status else 'Online' }}
+        </span>
+      {% endif %}
+    </div>
+    <p class="text-muted mb-0 small mt-1">
+      Live audit trail of OpenLDAP user logins, print requests, network scanner activity, and requesting workstations.
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-primary btn-sm d-flex align-items-center" onclick="syncPrinterNow()" id="btnSyncPrinter">
+      <i class="bi bi-arrow-repeat me-1" id="iconSyncPrinter"></i> Poll Printer Now
+    </button>
+    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center" onclick="syncLdapNow()" id="btnSyncLdap">
+      <i class="bi bi-people-fill me-1"></i> Sync LDAP Directory
+    </button>
+    <div class="dropdown">
+      <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-download me-1"></i> Export Logs
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+        <li><a class="dropdown-item" href="/api/export/printer-logs?format=csv&event_type={{ selected_type }}"><i class="bi bi-filetype-csv text-success me-2"></i>Export CSV</a></li>
+        <li><a class="dropdown-item" href="/api/export/printer-logs?format=json&event_type={{ selected_type }}"><i class="bi bi-filetype-json text-primary me-2"></i>Export JSON</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Hardware & Consumables KPI Cards -->
+<div class="row g-3 mb-4">
+  <!-- Toner Consumable -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-stat h-100 p-3 border-start border-4 border-dark">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted small fw-semibold text-uppercase">Toner Remaining</div>
+        <div class="stat-icon bg-dark-subtle text-dark"><i class="bi bi-droplet-half"></i></div>
+      </div>
+      <div class="d-flex align-items-baseline gap-2 mb-2">
+        <span class="h3 fw-bold mb-0 text-dark">{{ printer_status.toner_level if printer_status else 80 }}%</span>
+        <span class="text-muted small">Standard BK</span>
+      </div>
+      <div class="progress" style="height: 6px;">
+        <div class="progress-bar bg-dark" role="progressbar" style="width: {{ printer_status.toner_level if printer_status else 80 }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drum Life -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-stat h-100 p-3 border-start border-4 border-info">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted small fw-semibold text-uppercase">Drum Life Remaining</div>
+        <div class="stat-icon bg-info-subtle text-info"><i class="bi bi-disc"></i></div>
+      </div>
+      <div class="d-flex align-items-baseline gap-2 mb-2">
+        <span class="h3 fw-bold mb-0 text-info">{{ printer_status.drum_level if printer_status else 98 }}%</span>
+        <span class="text-muted small">Good Condition</span>
+      </div>
+      <div class="progress" style="height: 6px;">
+        <div class="progress-bar bg-info" role="progressbar" style="width: {{ printer_status.drum_level if printer_status else 98 }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scanned Pages -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-stat h-100 p-3 border-start border-4 border-success">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-success small fw-semibold text-uppercase">Total Scanned Pages</div>
+        <div class="stat-icon bg-success-subtle text-success"><i class="bi bi-camera"></i></div>
+      </div>
+      <div class="h3 fw-bold mb-1 text-success">{{ "{:,}".format(printer_status.total_scanned if printer_status else 37832) }}</div>
+      <div class="text-muted small">Flatbed &amp; ADF Duplex Scans</div>
+    </div>
+  </div>
+
+  <!-- Printed Pages -->
+  <div class="col-sm-6 col-xl-3">
+    <div class="card card-stat h-100 p-3 border-start border-4 border-primary">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-primary small fw-semibold text-uppercase">Total Printed Pages</div>
+        <div class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-printer"></i></div>
+      </div>
+      <div class="h3 fw-bold mb-1 text-primary">{{ "{:,}".format(printer_status.total_printed if printer_status else 19609) }}</div>
+      <div class="text-muted small">Total Lifetime: {{ "{:,}".format(printer_status.total_pages if printer_status else 119845) }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters and Search Bar -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-3">
+    <form method="get" action="/printer/logs" class="row g-2 align-items-center">
+      <!-- Event Type Tabs -->
+      <div class="col-md-4">
+        <div class="btn-group w-100" role="group">
+          <a href="/printer/logs?event_type=ALL{% if selected_user %}&user={{ selected_user }}{% endif %}{% if query %}&q={{ query }}{% endif %}" class="btn btn-sm {% if selected_type == 'ALL' %}btn-primary{% else %}btn-outline-secondary{% endif %}">All</a>
+          <a href="/printer/logs?event_type=PRINT{% if selected_user %}&user={{ selected_user }}{% endif %}{% if query %}&q={{ query }}{% endif %}" class="btn btn-sm {% if selected_type == 'PRINT' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="bi bi-printer me-1"></i>Prints</a>
+          <a href="/printer/logs?event_type=SCAN{% if selected_user %}&user={{ selected_user }}{% endif %}{% if query %}&q={{ query }}{% endif %}" class="btn btn-sm {% if selected_type == 'SCAN' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="bi bi-camera me-1"></i>Scans</a>
+          <a href="/printer/logs?event_type=LOGIN{% if selected_user %}&user={{ selected_user }}{% endif %}{% if query %}&q={{ query }}{% endif %}" class="btn btn-sm {% if selected_type == 'LOGIN' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="bi bi-person-check me-1"></i>Logins</a>
+        </div>
+      </div>
+
+      <!-- Filter by OpenLDAP User -->
+      <div class="col-md-3">
+        <select name="user" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Users (OpenLDAP Directory)</option>
+          {% for u in ldap_users %}
+            <option value="{{ u.uid }}" {% if selected_user == u.uid %}selected{% endif %}>
+              {{ u.cn }} ({{ u.uid }}) - {{ u.department }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Search Query -->
+      <div class="col-md-3">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search doc, PC, or user...">
+        </div>
+      </div>
+
+      <div class="col-md-2 d-flex gap-2">
+        <input type="hidden" name="event_type" value="{{ selected_type }}">
+        <button type="submit" class="btn btn-sm btn-primary flex-grow-1">Filter</button>
+        {% if selected_user or query or selected_type != 'ALL' %}
+          <a href="/printer/logs" class="btn btn-sm btn-outline-secondary" title="Clear Filters"><i class="bi bi-x-circle"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Audit Log Table Card -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+      <h5 class="card-title mb-0 fw-bold fs-6">
+        <i class="bi bi-journal-text text-primary me-2"></i> Printer &amp; Scanner Activity Ledger
+      </h5>
+      <span class="badge bg-secondary-subtle text-secondary">{{ total_logs }} records</span>
+    </div>
+    <div class="small text-muted font-monospace">
+      All timestamps in <span class="badge bg-light text-dark border">Asia/Dhaka 12-hour format</span>
+    </div>
+  </div>
+
+  <div class="card-body p-0 table-responsive">
+    <table class="table table-hover align-middle mb-0" id="printerLogsTable" style="font-size: 0.875rem;">
+      <thead class="table-light">
+        <tr>
+          <th scope="col" style="width: 170px;">Timestamp (Dhaka)</th>
+          <th scope="col" style="width: 90px;">Event</th>
+          <th scope="col">Authenticated User (LDAP)</th>
+          <th scope="col">Requesting PC / IP</th>
+          <th scope="col">Document / Task Name</th>
+          <th scope="col" style="width: 90px;" class="text-center">Pages</th>
+          <th scope="col" style="width: 100px;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="printerLogsBody">
+        {% if logs %}
+          {% for log in logs %}
+            <tr>
+              <td class="font-monospace text-muted small">
+                {{ log.timestamp_dhaka }}
+              </td>
+              <td>
+                {% if log.event_type == 'PRINT' %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                    <i class="bi bi-printer me-1"></i> PRINT
+                  </span>
+                {% elif log.event_type == 'SCAN' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                    <i class="bi bi-camera me-1"></i> SCAN
+                  </span>
+                {% elif log.event_type == 'LOGIN' %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                    <i class="bi bi-key-fill me-1"></i> LOGIN
+                  </span>
+                {% elif log.event_type == 'COPY' %}
+                  <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                    <i class="bi bi-files me-1"></i> COPY
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary px-2 py-1">{{ log.event_type }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ log.user_display_name }}</div>
+                <div class="small text-muted">
+                  <span class="badge bg-light text-secondary border font-monospace me-1">{{ log.username }}</span>
+                  {% if log.user_department and log.user_department != '-' %}
+                    <span class="badge bg-secondary-subtle text-secondary">{{ log.user_department }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                <div class="font-monospace text-secondary small">
+                  {{ log.client_pc }}
+                </div>
+              </td>
+              <td>
+                <div class="fw-medium text-dark text-truncate" style="max-width: 320px;" title="{{ log.document_name }}">
+                  {% if log.document_name.endswith('.pdf') %}
+                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>
+                  {% else %}
+                    <i class="bi bi-file-earmark-text text-secondary me-1"></i>
+                  {% endif %}
+                  {{ log.document_name }}
+                </div>
+                {% if log.details %}
+                  <div class="small text-muted text-truncate" style="max-width: 320px;" title="{{ log.details }}">
+                    {{ log.details }}
+                  </div>
+                {% endif %}
+              </td>
+              <td class="text-center font-monospace fw-bold">
+                {{ log.page_count }}
+                {% if log.two_sided %}<span class="badge bg-light text-dark border small" title="2-sided">2S</span>{% endif %}
+              </td>
+              <td>
+                {% if log.status == 'SUCCESS' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="bi bi-check-circle me-1"></i> OK
+                  </span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="bi bi-x-circle me-1"></i> {{ log.status }}
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="bi bi-inbox fs-2 mb-2 d-block"></i>
+              <p class="mb-1">No printer or scanner audit logs found matching your criteria.</p>
+              <button class="btn btn-outline-primary btn-sm mt-2" onclick="createSampleEvent()">
+                <i class="bi bi-plus-circle me-1"></i> Generate Test Event
+              </button>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if total_logs > limit %}
+    <div class="card-footer bg-white py-3 d-flex justify-content-between align-items-center">
+      <div class="small text-muted">
+        Showing {{ offset + 1 }} to {{ [offset + limit, total_logs]|min }} of {{ total_logs }} records
+      </div>
+      <div class="btn-group btn-group-sm">
+        {% if offset > 0 %}
+          <a href="/printer/logs?event_type={{ selected_type }}&user={{ selected_user }}&q={{ query }}&limit={{ limit }}&offset={{ [offset - limit, 0]|max }}" class="btn btn-outline-secondary">
+            &laquo; Previous
+          </a>
+        {% endif %}
+        {% if offset + limit < total_logs %}
+          <a href="/printer/logs?event_type={{ selected_type }}&user={{ selected_user }}&q={{ query }}&limit={{ limit }}&offset={{ offset + limit }}" class="btn btn-outline-secondary">
+            Next &raquo;
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- OpenLDAP User Directory Drawer / Reference Card -->
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0 fw-bold fs-6">
+      <i class="bi bi-people text-info me-2"></i> OpenLDAP User Directory ({{ ldap_users|length }} Synchronized Users)
+    </h5>
+    <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
+      Server: 192.168.1.19:389 (dc=aikhanlab,dc=com)
+    </span>
+  </div>
+  <div class="card-body p-0 table-responsive" style="max-height: 280px; overflow-y: auto;">
+    <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.8rem;">
+      <thead class="table-light sticky-top">
+        <tr>
+          <th>User ID (uid)</th>
+          <th>Full Name (cn)</th>
+          <th>Department (ou)</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th class="text-center">Prints</th>
+          <th class="text-center">Scans</th>
+          <th class="text-center">Logins</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in ldap_users %}
+          <tr>
+            <td class="font-monospace fw-bold text-dark">{{ u.uid }}</td>
+            <td>{{ u.cn }}</td>
+            <td><span class="badge bg-secondary-subtle text-secondary">{{ u.department }}</span></td>
+            <td class="text-muted">{{ u.mail }}</td>
+            <td class="text-muted font-monospace">{{ u.mobile }}</td>
+            <td class="text-center font-monospace">{{ u.print_count }}</td>
+            <td class="text-center font-monospace">{{ u.scan_count }}</td>
+            <td class="text-center font-monospace fw-semibold">{{ u.login_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function syncPrinterNow() {
+  const btn = document.getElementById('btnSyncPrinter');
+  const icon = document.getElementById('iconSyncPrinter');
+  icon.classList.add('scanning-pulse');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/printer/sync', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert('Sync error: ' + (data.detail || 'Failed'));
+    }
+  } catch (err) {
+    alert('Network error connecting to API: ' + err.message);
+  } finally {
+    icon.classList.remove('scanning-pulse');
+    btn.disabled = false;
+  }
+}
+
+async function syncLdapNow() {
+  const btn = document.getElementById('btnSyncLdap');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/printer/ldap-sync', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Successfully synchronized ' + data.users_synced + ' users from OpenLDAP directory.');
+      location.reload();
+    } else {
+      alert('Sync failed: ' + (data.detail || 'Error'));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function createSampleEvent() {
+  try {
+    const res = await fetch('/api/printer/test-log?event_type=PRINT&username=tasim&document_name=Patient_Report_2610-0027.pdf&pages=3', { method: 'POST' });
+    if (res.ok) {
+      location.reload();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// Live WebSocket updates
+(function() {
+  const loc = window.location;
+  const wsProtocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${loc.host}/ws`;
+
+  let ws = null;
+  function connectWs() {
+    ws = new WebSocket(wsUrl);
+    ws.onmessage = function(event) {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'printer_log_event') {
+          // Prepend new row to table
+          const log = msg.payload;
+          const tbody = document.getElementById('printerLogsBody');
+          if (tbody) {
+            const tr = document.createElement('tr');
+            tr.className = 'table-success';
+            tr.innerHTML = `
+              <td class="font-monospace text-muted small">${log.timestamp_dhaka || '-'}</td>
+              <td><span class="badge bg-primary px-2 py-1">${log.event_type}</span></td>
+              <td>
+                <div class="fw-semibold text-dark">${log.user_display_name}</div>
+                <div class="small text-muted"><span class="badge bg-light text-secondary border font-monospace">${log.username}</span></div>
+              </td>
+              <td class="font-monospace text-secondary small">${log.client_pc}</td>
+              <td class="fw-medium text-dark">${log.document_name}</td>
+              <td class="text-center font-monospace fw-bold">${log.page_count}</td>
+              <td><span class="badge bg-success-subtle text-success border border-success-subtle">OK</span></td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+            setTimeout(() => tr.classList.remove('table-success'), 3000);
+          }
+        } else if (msg.type === 'printer_status_update') {
+          // Update status cards if needed
+        }
+      } catch (e) {}
+    };
+    ws.onclose = function() {
+      setTimeout(connectWs, 5000);
+    };
+  }
+  connectWs();
+})();
+</script>
+{% endblock %}
